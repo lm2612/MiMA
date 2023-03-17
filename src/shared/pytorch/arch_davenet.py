@@ -36,20 +36,20 @@ class WaveNet(nn.Module):
 
         shared = [nn.BatchNorm1d(n_in), nn.Linear(n_in, 256), nn.ReLU()]
         for _ in range(4):
-            shared.extend(nn.Linear(256, 256))
-            shared.extend(nn.ReLU())
+            shared.extend([nn.Linear(256, 256)])
+            shared.extend([nn.ReLU()])
 
-        shared.extend(nn.Linear(256, branch_dims[0]))
-        shared.extend(nn.ReLU())
+        shared.extend([nn.Linear(256, branch_dims[0])])
+        shared.extend([nn.ReLU()])
 
         branches = []
         for _ in range(n_out):
             args: list[nn.Module] = []
             for in_features, out_features in zip(branch_dims[:-1], branch_dims[1:]):
-                args.extend(nn.Linear(in_features, out_features))
-                args.extend(nn.ReLU())
+                args.extend([nn.Linear(in_features, out_features)])
+                args.extend([nn.ReLU()])
 
-            args.extend(nn.Linear(branch_dims[-1], 1))
+            args.extend([nn.Linear(branch_dims[-1], 1)])
             branches.append(nn.Sequential(*args))
 
         self.shared = nn.Sequential(*shared)
