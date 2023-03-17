@@ -1,45 +1,55 @@
-import torch, torch.nn as nn
+"""Module defining the pytorch WaveNet architecture for coupling to MiMA. """
+import torch
+from torch import nn
+
 
 class WaveNet(nn.Module):
     """Neural network architecture following Espinosa et al. (2022)."""
 
-    def __init__(self,
+    def __init__(
+        self,
         checkpoint,
-        n_in: int=42,
-        n_out: int=40,
-        branch_dims=[64, 32]
+        n_in: int = 42,
+        n_out: int = 40,
+        branch_dims=None,
     ) -> None:
         """
         Initialize a WaveNet model.
 
         Parameters
         ----------
-        checkpoint: dict containing weights & statistics.
-        n_in : Number of input features.
-        n_out : Number of output features.
-        branch_dims : List of dimensions of the layers to include in each of the
-            level-specific branches.
+        checkpoint: dict
+            dictionary containing weights & statistics.
+        n_in : int
+            Number of input features.
+        n_out : int
+            Number of output features.
+        branch_dims : Union[list, None]
+            List of dimensions of the layers to include in each of the level-specific branches.
 
         """
+
+        if branch_dims is None:
+            branch_dims = [64, 32]
 
         super().__init__()
 
         shared = [nn.BatchNorm1d(n_in), nn.Linear(n_in, 256), nn.ReLU()]
-        for i in range(4):
-            shared.append(nn.Linear(256, 256))
-            shared.append(nn.ReLU())
+        for _ in range(4):
+            shared.extend(nn.Linear(256, 256))
+            shared.extend(nn.ReLU())
 
-        shared.append(nn.Linear(256, branch_dims[0]))
-        shared.append(nn.ReLU())
+        shared.extend(nn.Linear(256, branch_dims[0]))
+        shared.extend(nn.ReLU())
 
         branches = []
         for _ in range(n_out):
             args: list[nn.Module] = []
-            for a, b in zip(branch_dims[:-1], branch_dims[1:]):
-                args.append(nn.Linear(a, b))
-                args.append(nn.ReLU())
+            for in_features, out_features in zip(branch_dims[:-1], branch_dims[1:]):
+                args.extend(nn.Linear(in_features, out_features))
+                args.extend(nn.ReLU())
 
-            args.append(nn.Linear(branch_dims[-1], 1))
+            args.extend(nn.Linear(branch_dims[-1], 1))
             branches.append(nn.Sequential(*args))
 
         self.shared = nn.Sequential(*shared)
@@ -50,8 +60,8 @@ class WaveNet(nn.Module):
             branch.apply(_xavier_init)
 
         self.double()
-        self.means=checkpoint['means']
-        self.stds=checkpoint['stds']
+        self.means = checkpoint["means"]
+        self.stds = checkpoint["stds"]
         del checkpoint
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
@@ -60,11 +70,13 @@ class WaveNet(nn.Module):
 
         Parameters
         ----------
-        X : `Tensor` of input features.
+        X : torch.Tensor
+            Tensor of of input features.
 
         Returns
         -------
-        output : `Tensor` of predicted outputs.
+        output : torch.Tensor
+            Tensor of predicted outputs.
 
         """
         Z, levels = self.shared(X), []
@@ -77,16 +89,17 @@ class WaveNet(nn.Module):
         Y += self.means
         return Y
 
+
 def _xavier_init(layer: nn.Module) -> None:
     """
     Apply Xavier initialization to a layer if it is an `nn.Linear`.
 
     Parameters
     ----------
-    layer : Linear to potentially initialize.
+    layer : nn.Module
+        Linear to potentially initialize.
 
     """
 
     if isinstance(layer, nn.Linear):
         nn.init.xavier_uniform_(layer.weight)
-
