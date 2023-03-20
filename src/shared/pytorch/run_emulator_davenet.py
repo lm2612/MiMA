@@ -76,6 +76,9 @@ def compute_reshape_drag(*args):
 
     # Apply model.
     with no_grad():
+        # Ensure evaluation mode (leave training mode and stop using current batch stats)
+        # model.eval()  # Set during initialisation
+        assert model.training is False
         temp = model(X)
 
     # Reshape into what MiMA needs.

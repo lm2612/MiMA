@@ -42,6 +42,7 @@ class WaveNet(nn.Module):
         shared.extend([nn.Linear(256, branch_dims[0])])
         shared.extend([nn.ReLU()])
 
+        # All data gets fed through shared, then extra layers defined in branches for each z-level
         branches = []
         for _ in range(n_out):
             args: list[nn.Module] = []
