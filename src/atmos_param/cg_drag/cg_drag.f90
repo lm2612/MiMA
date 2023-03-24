@@ -87,7 +87,9 @@ real        :: source_level_pressure= 315.e+02
                                   ! wave source level at the equator 
                                   ! [ Pa ]
 real       ::  damp_level_pressure=0.8e+02
-				  ! added by cig, feb 27, 2017. any waves reaching the top level will  be deposited down to this level
+                                  ! added by cig, feb 27, 2017. any waves
+                                  ! reaching the top level will  be
+                                  ! deposited down to this level
 integer     :: nk=1               ! number of wavelengths contained in 
                                   ! the gravity wave spectrum
 real        :: cmax=99.6          ! maximum phase speed in gravity wave
@@ -170,7 +172,7 @@ namelist / cg_drag_nml /         &
                           i_coords_gl, j_coords_gl,   &
                           lat_coords_gl, lon_coords_gl, &
                           phi0n,phi0s,dphin,dphis, Bw, Bn, cw, cwtropics, cn, flag, &
-			  weightminus2, weightminus1, weighttop,kelvin_kludge
+                          weightminus2, weightminus1, weighttop,kelvin_kludge
 
 
 !--------------------------------------------------------------------
@@ -216,7 +218,7 @@ integer    :: nc        ! number of wave speeds in spectrum
 integer    :: klevel_of_source, klevel_of_damp
                         ! k index of the gravity wave source level at
                         ! the equator in a standard atmosphere
-			! also k index of level up to where  mesosphere drag is dumped  (cig, feb 27 2017)
+                        ! also k index of level up to where  mesosphere drag is dumped  (cig, feb 27 2017)
 
 
 !---------------------------------------------------------------------
@@ -388,7 +390,7 @@ type(time_type),         intent(in)      :: Time
 !    ied as the source location via namelist input.
 !--------------------------------------------------------------------
       do k=1,kmax
-	 if (pref(k) < damp_level_pressure) then
+       if (pref(k) < damp_level_pressure) then
           klevel_of_damp = k        
         endif
         if (pref(k) > source_level_pressure) then
@@ -405,23 +407,23 @@ type(time_type),         intent(in)      :: Time
           lat(i,j)=  0.5*( latb(j+1)+latb(j) )
           source_level(i,j) = (kmax + 1) - ((kmax + 1 -    &
                               klevel_of_source)*cos(lat(i,j)) + 0.5)
-   	  
-	  damp_level(i,j) = klevel_of_damp  !cig
-	thislatdeg=lat(i,j)*pifinv
+  
+          damp_level(i,j) = klevel_of_damp  !cig
+          thislatdeg=lat(i,j)*pifinv
 !code added by ipw - nov 23, 2016
-       if (thislatdeg > phi0n) then
+          if (thislatdeg > phi0n) then
                 source_amp(i,j) = Bt_0 + Bt_nh*0.5*(1.+tanh((thislatdeg-phi0n)/dphin))+ &
                 Bt_sh*0.5*(1.+tanh((thislatdeg-phi0s)/dphis));
-        elseif (thislatdeg < phi0s) then
-               source_amp(i,j) = Bt_0 + Bt_nh*0.5*(1.+tanh((thislatdeg-phi0n)/dphin))+ &
-               Bt_sh*0.5*(1.+tanh((thislatdeg-phi0s)/dphis));
-        elseif ((thislatdeg <= dphin) .and. (thislatdeg >= dphis))  then
-	       source_amp(i,j) = Bt_eq
-	elseif ((thislatdeg <= phi0n) .and. (thislatdeg > dphin))  then
-		source_amp(i,j) = Bt_0 + (Bt_eq-Bt_0)/(phi0n-dphin)*(phi0n-thislatdeg)
-	elseif ((thislatdeg < dphis) .and. (thislatdeg >= phi0s))  then
-		source_amp(i,j) = Bt_0 + (Bt_eq-Bt_0)/(phi0s-dphis)*(phi0s-thislatdeg)
-	endif         
+          elseif (thislatdeg < phi0s) then
+                source_amp(i,j) = Bt_0 + Bt_nh*0.5*(1.+tanh((thislatdeg-phi0n)/dphin))+ &
+                Bt_sh*0.5*(1.+tanh((thislatdeg-phi0s)/dphis));
+          elseif ((thislatdeg <= dphin) .and. (thislatdeg >= dphis))  then
+                source_amp(i,j) = Bt_eq
+          elseif ((thislatdeg <= phi0n) .and. (thislatdeg > dphin))  then
+                source_amp(i,j) = Bt_0 + (Bt_eq-Bt_0)/(phi0n-dphin)*(phi0n-thislatdeg)
+          elseif ((thislatdeg < dphis) .and. (thislatdeg >= phi0s))  then
+                source_amp(i,j) = Bt_0 + (Bt_eq-Bt_0)/(phi0s-dphis)*(phi0s-thislatdeg)
+          endif         
 
 ! source_amp(i,j) = Bt_0 +                         &
 !                     Bt_nh*0.5*(1.+tanh((lat(i,j)/pif-phi0n)/dphin)) + &
@@ -797,22 +799,47 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
         end do
       
 !---------------------------------------------------------------------
-!    pass the vertically-extended input arrays to gwfc. gwfc will cal-
-!    culate the gravity-wave forcing and, if desired, an effective eddy 
-!    diffusion coefficient at each level above the source level. output
-!    is returned in the vertically-extended arrays gwfcng and ked_gwfc.
-!    upon return move the output fields into model-sized arrays. 
+!    calculate the gravity-wave forcing and, if desired, an effective
+!    eddy diffusion coefficient at each level above the source level.
+!    output is returned in the vertically-extended arrays gwfcng and
+!    ked_gwfc. upon return move the output fields into model-sized
+!    arrays.
+!    there are multiple options for calculating the gravity wave forcing
+!    gwfcng_x, gwfcng_y:
+!    - AD99 Parameterisation (gwfc subroutine)
+!    - Wavenet ML model via:  !TODO
+!      - forpy python coupling,  !TODO
+!      - PyTorch TorchScript coupling  !TODO
+!      - Tensorflow coupling  !TODO
 !---------------------------------------------------------------------
+       ! START OF ML COUPLING CHANGES
+       ! 1 - AD99 Parameterisation from original code
        call gwfc (is, ie, js, je, damp_level, source_level, source_amp, lat,   &
                      zden, zu, zbf,zzchm, gwd_xtnd, ked_xtnd)
+       gwfcng_x  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
 
-          gwfcng_x  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
-          ked_gwfc_x(:,:,1:kmax) = ked_xtnd(:,:,1:kmax  )
-          
        call gwfc (is, ie, js, je, damp_level, source_level, source_amp,  lat,  &
                      zden, zv, zbf,zzchm, gwd_ytnd, ked_ytnd)
-          gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
-          ked_gwfc_y(:,:,1:kmax) = ked_ytnd(:,:,1:kmax  )
+       gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
+       
+       ! 2 - forpy coupling to pytorch based on previous implementation
+       !     - Prepare data to go out
+       !     - Call python script
+
+       ! 3 - Torchscript Coupling
+       !     - Generate Tensor
+       !     - Call Pytorch
+
+       ! 4 - TensorFlow Coupling
+       !     - Generate Tensor
+       !     - Call TensorFlow
+
+
+       ! TODO ked is only ever used as a diagnostic to be written out - we do not need to calculate it!
+       ked_gwfc_x(:,:,1:kmax) = ked_xtnd(:,:,1:kmax  )
+       ked_gwfc_y(:,:,1:kmax) = ked_ytnd(:,:,1:kmax  )
+       
+       ! END OF ML COUPLING CHANGES
           
 !--------------------------------------------------------------------
 !    store the gravity wave forcing into a processor-global array.
