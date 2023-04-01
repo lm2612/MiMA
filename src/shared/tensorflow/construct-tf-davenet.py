@@ -1,10 +1,12 @@
-import torch
-import tensorflow as tf
-from tensorflow.keras.layers import Dense, BatchNormalization
-from typing import List, Tuple
-import numpy as np
 import argparse
 from pathlib import Path
+
+import numpy as np
+import torch
+
+import tensorflow as tf
+from tensorflow.keras.layers import BatchNormalization, Dense
+
 
 def main():
     '''
@@ -13,31 +15,44 @@ def main():
 
     ap = argparse.ArgumentParser()
     ap.add_argument('davenet_file', type=argparse.FileType('rb'))
-    ap.add_argument('--output_dir', '-o', type=Path, default=Path('saved_model'))
+    ap.add_argument(
+        '--output_dir',
+        '-o',
+        type=Path,
+        default=Path('saved_model')
+    )
     args = ap.parse_args()
 
     # First load the PyTorch davenet weights, etc
-    # checkpoint is a dict, top-level keys are 'weights', 'means', 'stds'.  Latter two
-    # are for final normalisation.
+    # checkpoint is a dict, top-level keys are 'weights', 'means', 'stds'.
+    # Latter two are for final normalisation.
 
-    checkpoint = torch.load(args.davenet_file, map_location=torch.device('cpu'))
+    checkpoint = torch.load(args.davenet_file,
+                            map_location=torch.device('cpu'))
 
     nin = 42
 
     the_type = tf.float64
 
     inputs = tf.keras.Input(shape=(nin, ), dtype=the_type)
-    prev_layer = tf.keras.layers.BatchNormalization(
+    prev_layer = BatchNormalization(
         dtype=the_type,
-        epsilon=0.00001, # to match the PyTorch BatchNorm1d default
+        epsilon=0.00001,  # to match the PyTorch BatchNorm1d default
     )(inputs)
 
-    for i in range(1,10,2): # 1, 3, 5, 7, 9
-        prev_layer = tf.keras.layers.Dense(256, activation="relu", dtype=the_type,
+    for i in range(1, 10, 2):  # 1, 3, 5, 7, 9
+        prev_layer = tf.keras.layers.Dense(
+            256,
+            activation="relu",
+            dtype=the_type,
             kernel_initializer=tf.keras.initializers.GlorotNormal(),
-            name=f"dense_{i}")(prev_layer)
+            name=f"dense_{i}"
+        )(prev_layer)
 
-    prev_layer = tf.keras.layers.Dense(64, activation="relu", dtype=the_type,
+    prev_layer = tf.keras.layers.Dense(
+        64,
+        activation="relu",
+        dtype=the_type,
         kernel_initializer=tf.keras.initializers.GlorotNormal(),
         name='dense_11')(prev_layer)
 
@@ -45,27 +60,36 @@ def main():
     for i in range(40):
         nested_prev_layer = prev_layer
         for size in [32]:
-            nested_prev_layer = tf.keras.layers.Dense(size, activation="relu", dtype=the_type,
+            nested_prev_layer = tf.keras.layers.Dense(
+                size,
+                activation="relu",
+                dtype=the_type,
                 kernel_initializer=tf.keras.initializers.GlorotNormal(),
                 name=f"branches.{i}.0",
-                )(nested_prev_layer)
+            )(nested_prev_layer)
 
         # These produce the single value outputs from each branch.
-        output_layers.append(Dense(1, dtype=the_type,
+        output_layers.append(Dense(
+            1,
+            dtype=the_type,
             kernel_initializer=tf.keras.initializers.GlorotNormal(),
-            name = f"branches.{i}.2",
-            )(nested_prev_layer))
+            name=f"branches.{i}.2",
+        )(nested_prev_layer))
 
     # Concatenate them into one tensor.
-    concatted_output = tf.keras.layers.concatenate(output_layers, dtype=the_type)
+    concatted_output = tf.keras.layers.concatenate(
+        output_layers,
+        dtype=the_type
+    )
 
     # Normalization layer
     # davenet does
-    # 
+    #
     #   # Un-standardize
     #   Y *= self.stds
     #   Y += self.means
-    # i.e. it's an inversion of a normalization layer, so we'll set invert=True.
+    # i.e. it's an inversion of a normalization layer, so we'll set
+    # invert=True.
 
     # Oh dear, invert doesn't seem to persist after saving
     # (see https://github.com/keras-team/keras/issues/17556).
@@ -76,32 +100,49 @@ def main():
     # we need m = -mean / std and s = 1 / std, but layer stores variance
     # which is s^2 = 1 / std^2
 
-    # oh but there's a stddev of zero in there which mucks things up.  Use np.nan_to_num
-    means = np.nan_to_num(- checkpoint['means'].to('cpu').numpy() / checkpoint['stds'].to('cpu').numpy())
+    # oh but there's a stddev of zero in there which mucks things up.
+    # Use np.nan_to_num.
+    means = np.nan_to_num(
+        - checkpoint['means'].to('cpu').numpy() /
+        checkpoint['stds'].to('cpu').numpy()
+    )
 
-    variance = np.nan_to_num(np.reciprocal(checkpoint['stds'].to('cpu').numpy() ** 2))
-    normalized_output = tf.keras.layers.Normalization(invert=False, # see above
+    variance = np.nan_to_num(np.reciprocal(
+        checkpoint['stds'].to('cpu').numpy() ** 2))
+    normalized_output = tf.keras.layers.Normalization(
+        invert=False,  # see above
         dtype=the_type,
         mean=means,
         variance=variance,
-        )(concatted_output)
+    )(concatted_output)
 
     # Finally declare the model.
     model = tf.keras.Model(inputs=inputs, outputs=normalized_output)
 
     # Most of the options here only apply to training, and are copied from
-    # Learning-with-GWD-with-MIMA.  We do need to compile the Model before we save it.
+    # Learning-with-GWD-with-MIMA.  We do need to compile the Model before we
+    # save it.
     adam_optimizer = tf.keras.optimizers.Adam(
-        learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, amsgrad=False, clipvalue=.1,
+        learning_rate=0.0001,
+        beta_1=0.9,
+        beta_2=0.999,
+        epsilon=1e-8,
+        amsgrad=False,
+        clipvalue=.1,
     )
     model.compile(
             optimizer=adam_optimizer,
-            loss=tf.keras.losses.LogCosh(reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE, name="log_cosh"),
+            loss=tf.keras.losses.LogCosh(
+                reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE,
+                name="log_cosh"
+            ),
             metrics=[
                 # Fits to Median: robust to unwanted outliers
-                tf.keras.metrics.MeanAbsoluteError(name="mean_absolute_error", dtype=None),
+                tf.keras.metrics.MeanAbsoluteError(name="mean_absolute_error",
+                                                   dtype=None),
                 # # Fits to Mean: robust to wanted outliers
-                tf.keras.metrics.MeanSquaredError(name="mean_squared_error", dtype=None),
+                tf.keras.metrics.MeanSquaredError(name="mean_squared_error",
+                                                  dtype=None),
                 # # Twice diferentiable, combination of MSE and MAE
                 tf.keras.metrics.LogCoshError(name="logcosh", dtype=None),
                 # # STD of residuals
@@ -116,22 +157,33 @@ def main():
 
     # shared.0 is the py.BatchNorm1d layer -> tf.BatchNormalization
     chk = checkpoint['weights']
-    bnweights = [ w.to('cpu').numpy().T for w in (chk['shared.0.weight'], chk['shared.0.bias'], chk['shared.0.running_mean'], chk['shared.0.running_var']) ]
+    bnweights = [w.to('cpu').numpy().T for w in (
+        chk['shared.0.weight'],
+        chk['shared.0.bias'],
+        chk['shared.0.running_mean'],
+        chk['shared.0.running_var']
+    )]
     # model.layers[0] is the tf.InputLayer, there is no PyTorch equiv.
     model.layers[1].set_weights(bnweights)
 
     # shared.{1,3,5,7,9,11} are the shared Linear layers -> tf.Dense
-    # shared.{2,4,6,8,10,12} are the ReLU activations.  These are not separate layers in TF.
-    for i in range(1,12,2):
-        weights = [w.to('cpu').numpy().T for w in (chk[f"shared.{i}.weight"], chk[f"shared.{i}.bias"])]
+    # shared.{2,4,6,8,10,12} are the ReLU activations.  These are not separate
+    # layers in TF.
+    for i in range(1, 12, 2):
+        weights = [w.to('cpu').numpy().T for w in (
+            chk[f"shared.{i}.weight"],
+            chk[f"shared.{i}.bias"]
+        )]
         model.get_layer(f"dense_{i}").set_weights(weights)
 
     # branch layers Linear -> tf.Dense
-    for i in range(40): # loop over branches
-        for j in (0, 2): # layer in branch
-            weights = [w.to('cpu').numpy().T for w in (chk[f"branches.{i}.{j}.weight"], chk[f"branches.{i}.{j}.bias"])]
+    for i in range(40):  # loop over branches
+        for j in (0, 2):  # layer in branch
+            weights = [w.to('cpu').numpy().T for w in (
+                chk[f"branches.{i}.{j}.weight"],
+                chk[f"branches.{i}.{j}.bias"]
+            )]
             model.get_layer(f"branches.{i}.{j}").set_weights(weights)
-
 
     # Finish
     model.summary()
