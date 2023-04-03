@@ -85,10 +85,7 @@ class WaveNet(nn.Module):
 
         """
 
-        X = torch.cat((wind, lat, pressure), 1)
-        Z, levels = self.shared(X), []
-
-        # Z, levels = self.shared(torch.cat((wind, lat, pressure), 2)), []
+        Z, levels = self.shared(torch.cat((wind, lat, pressure), 1)), []
         
         for branch in self.branches:
             levels.append(branch(Z).squeeze())
