@@ -22,6 +22,7 @@ def script_to_torchscript(
     """
     # FIXME: torch.jit.optimize_for_inference() when PyTorch issue #81085 is resolved
     scripted_model = torch.jit.script(model)
+    print(scripted_model.code)
     scripted_model.save(filename)
 
 
