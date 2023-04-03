@@ -5,7 +5,7 @@ It needs in the same directory as `arch_DaveNet.py` which describes the
 model architecture, and `network_wst.pkl` which contains the model weights.
 """
 from torch import load, device, no_grad, reshape, zeros, tensor, float64
-import arch_davenet as m
+import arch_davenet_orig as m
 
 
 # Initialize everything
@@ -62,26 +62,24 @@ def compute_reshape_drag(*args):
     imax = 128
 
     # Reshape and put all input variables together [wind, lat, p_surf]
-    # wind_T = zeros((imax * num_col, 40), dtype=float64)
-    wind_T = reshape(
+    X = zeros((imax * num_col, 42), dtype=float64)
+    X[:, :40] = reshape(
         tensor(wind), (imax * num_col, 40)
-    )
+    )  # wind[i,j,:] is now at X[i*num_col+j,:40]
 
-    lat_T = reshape(
-        tensor(lat), (imax * num_col, 1)
-    )
+    for i in range(num_col):
+        X[i::num_col, 40] = lat[i]  # lat[j] is at X[j::num_col,40].
 
-    # pressure_T = zeros((imax * num_col, 1), dtype=float64)
-    pressure_T = reshape(
-        tensor(p_surf), (imax * num_col, 1)
-    )
+    X[:, 41] = reshape(
+        tensor(p_surf), (imax * num_col,)
+    )  # p_surf[i,j] is now at X[i*num_col+j,41].
 
     # Apply model.
     with no_grad():
         # Ensure evaluation mode (leave training mode and stop using current batch stats)
         # model.eval()  # Set during initialisation
         assert model.training is False
-        temp = model(wind_T, lat_T, pressure_T)
+        temp = model(X)
 
     # Reshape into what MiMA needs.
     # Y_out[i,j,:] was temp[i*num_col+j,:].
