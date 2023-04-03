@@ -30,15 +30,41 @@ def main():
     checkpoint = torch.load(args.davenet_file,
                             map_location=torch.device('cpu'))
 
-    nin = 42
 
     the_type = tf.float64
 
-    inputs = tf.keras.Input(shape=(nin, ), dtype=the_type)
+    # Newest davenet (as modified by Jack Atkinson) has 3 Inputs,
+    # wind, lat, pressure.
+    # wind is (:, 40)
+    # lat is (:, 1)
+    # pressure is (:, 1)
+    input_wind = tf.keras.Input(
+        shape=(40, ),
+        dtype=the_type,
+        name='input_wind'
+    )
+    input_lat = tf.keras.Input(
+        shape=(1, ),
+        dtype=the_type,
+        name='input_lat'
+    )
+    input_press = tf.keras.Input(
+        shape=(1, ),
+        dtype=the_type,
+        name='input_press'
+    )
+    inputs = [input_wind, input_lat, input_press]
+    # concatenate them into a single to feed to original davenet under
+    # the hood
+    concatted_input = tf.keras.layers.concatenate(
+        inputs,
+        dtype=the_type
+    )
     prev_layer = BatchNormalization(
         dtype=the_type,
         epsilon=0.00001,  # to match the PyTorch BatchNorm1d default
-    )(inputs)
+        name='batchnormlayer'
+    )(concatted_input)
 
     for i in range(1, 10, 2):  # 1, 3, 5, 7, 9
         prev_layer = tf.keras.layers.Dense(
@@ -164,7 +190,7 @@ def main():
         chk['shared.0.running_var']
     )]
     # model.layers[0] is the tf.InputLayer, there is no PyTorch equiv.
-    model.layers[1].set_weights(bnweights)
+    model.get_layer('batchnormlayer').set_weights(bnweights)
 
     # shared.{1,3,5,7,9,11} are the shared Linear layers -> tf.Dense
     # shared.{2,4,6,8,10,12} are the ReLU activations.  These are not separate
