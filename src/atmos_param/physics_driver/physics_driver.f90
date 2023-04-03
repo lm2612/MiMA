@@ -122,7 +122,7 @@ use radiative_gases_mod,     only: radiative_gases_init,   &
 
 use damping_driver_mod,      only: damping_driver,      &
                                    damping_driver_init, &
-                                   damping_driver_end
+                                   damping_driver_end, &
 
 use grey_radiation_mod, only: grey_radiation_init, grey_radiation, grey_radiation_end
 
@@ -1303,11 +1303,11 @@ real,  dimension(:,:,:), intent(out)  ,optional :: diffm, difft
       z_pbl(:,:) = pbltop(is:ie,js:je) 
       if(do_damping) then
         call mpp_clock_begin ( damping_clock )
-        call damping_driver (is, js, lat, Time_next, dt,           &
+        call damping_driver (is, ie, js, je, lat, Time_next, dt,           &
                              p_full, p_half, z_full, z_half,          &
                              um, vm, tm, qm, rm(:,:,:,1:ntp), &
                              udt, vdt, tdt, qdt, rdt,&
-                             z_pbl , mask=mask, kbot=kbot)
+                             z_pbl, mask=mask, kbot=kbot)
        call mpp_clock_end ( damping_clock )
      endif
 

@@ -128,7 +128,9 @@
      weightminus2 = 0.02,
      source_level_pressure = 315.e+02,
      damp_level_pressure = 0.85e+02,
-     cg_drag_freq = 21600 /
+     cg_drag_freq = 21600,
+     runML = .true.,
+     model_path = 'unknown' /
 
  &moist_processes_nml
      do_bm           =.true.,   
