@@ -127,10 +127,10 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   real, dimension(:,:), allocatable  :: uuu_flattened, vvv_flattened
   real, dimension(:,:), allocatable, target  :: uuu_reshaped, vvv_reshaped
   real, dimension(:), allocatable, target    :: lat_reshaped, psfc_reshaped
+  real, dimension(:,:), allocatable  :: gwfcng_x_flattened, gwfcng_y_flattened
+  real, dimension(:,:), allocatable, target  :: gwfcng_x_reshaped, gwfcng_y_reshaped
 
   integer :: imax, jmax, kmax, j
-  ! real, parameter :: rad2deg = 180.0/(4.0*ATAN(1.0))
-  ! real, parameter :: rad2deg = 180.0/PI
 
   integer(c_int), parameter :: dims_2D = 2
   integer(c_int64_t) :: shape_2D(dims_2D)
@@ -141,7 +141,6 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
 
   ! Set up types of input and output data and the interface with C
   type(torch_tensor) :: gwfcng_x_tensor, gwfcng_y_tensor
-  
   integer(c_int), parameter :: n_inputs = 3
   type(torch_tensor), dimension(n_inputs), target :: model_input_arr
   
@@ -163,6 +162,10 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   allocate( vvv_reshaped(kmax, imax*jmax) )
   allocate( lat_reshaped(imax*jmax) )
   allocate( psfc_reshaped(imax*jmax) )
+  allocate( gwfcng_x_flattened(imax*jmax, kmax) )
+  allocate( gwfcng_y_flattened(imax*jmax, kmax) )
+  allocate( gwfcng_x_reshaped(kmax, imax*jmax) )
+  allocate( gwfcng_y_reshaped(kmax, imax*jmax) )
 
   do j=1,jmax
       uuu_flattened((j-1)*imax+1:j*imax,:) = uuu(:,j,:)
@@ -175,22 +178,30 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   vvv_reshaped = TRANSPOSE(vvv_flattened)
 
   ! Create input/output tensors from the above arrays
-  model_input_arr(1) = torch_tensor_from_blob(c_loc(uuu_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
   model_input_arr(2) = torch_tensor_from_blob(c_loc(lat_reshaped), dims_1D, shape_1D, torch_kFloat64, torch_kCPU)
   model_input_arr(3) = torch_tensor_from_blob(c_loc(psfc_reshaped), dims_1D, shape_1D, torch_kFloat64, torch_kCPU)
-
-  gwfcng_x_tensor = torch_tensor_from_blob(c_loc(gwfcng_x), dims_out, shape_out, torch_kFloat64, torch_kCPU)
-  ! Load model and Infer zonal
+  
+  ! Zonal
+  model_input_arr(1) = torch_tensor_from_blob(c_loc(uuu_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
+  gwfcng_x_tensor = torch_tensor_from_blob(c_loc(gwfcng_x_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
+  ! Run model and Infer
   call torch_module_forward(model, model_input_arr, n_inputs, gwfcng_x_tensor)
   
+  ! Meridional
   model_input_arr(1) = torch_tensor_from_blob(c_loc(vvv_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
-  gwfcng_y_tensor = torch_tensor_from_blob(c_loc(gwfcng_y), dims_out, shape_out, torch_kFloat64, torch_kCPU)
-  ! Load model and Infer meridional
+  gwfcng_y_tensor = torch_tensor_from_blob(c_loc(gwfcng_y_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
+  ! Run model and Infer
   call torch_module_forward(model, model_input_arr, n_inputs, gwfcng_y_tensor)
 
 
   ! Convert back into fortran types, reshape, and assign to gwfcng
-
+  gwfcng_x_flattened = TRANSPOSE(gwfcng_x_reshaped)
+  gwfcng_y_flattened = TRANSPOSE(gwfcng_y_reshaped)
+  
+  do j=1,jmax
+      gwfcng_x(:,j,:) = gwfcng_x_flattened((j-1)*imax+1:j*imax,:)
+      gwfcng_y(:,j,:) = gwfcng_y_flattened((j-1)*imax+1:j*imax,:)
+  end do
 
   ! Cleanup
   call torch_tensor_delete(model_input_arr(1))
@@ -205,6 +216,10 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   deallocate( vvv_reshaped )
   deallocate( lat_reshaped )
   deallocate( psfc_reshaped )
+  deallocate( gwfcng_x_flattened )
+  deallocate( gwfcng_y_flattened )
+  deallocate( gwfcng_x_reshaped )
+  deallocate( gwfcng_y_reshaped )
 
 
 end subroutine cg_drag_ML
