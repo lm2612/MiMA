@@ -2,10 +2,19 @@ cmake_minimum_required(VERSION 3.2)
 #policy CMP0076 - target_sources source files are relative to file where target_sources is run
 cmake_policy (SET CMP0076 NEW)
 
+option(BUILD_PT_COUPLING "Build the PyTorch coupling code")
+option(BUILD_TF_COUPLING "Build the TensorFlow coupling code")
+option(BUILD_FORPY_COUPLING "Build the Forpy coupling code")
+
 # MiMA claims to only compile with ifort / icc currently.
 set ( CMAKE_Fortran_COMPILER "ifort" )
 set ( CMAKE_C_COMPILER "icc" )
-project(MiMA Fortran C)
+if(BUILD_PT_COUPLING)
+   set ( CMAKE_CXX_COMPILER "icc" )
+   project(MiMA Fortran C CXX)
+else()
+   project(MiMA Fortran C)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
@@ -33,11 +42,60 @@ endif()
 find_package (MPI REQUIRED)
 target_link_libraries( mima.x PRIVATE MPI::MPI_Fortran )
 
-find_package (Python REQUIRED COMPONENTS Development)
-target_link_libraries( mima.x PRIVATE Python::Python )
-
 find_package (OpenMP REQUIRED COMPONENTS Fortran)
 target_link_libraries( mima.x PRIVATE OpenMP::OpenMP_Fortran )
+
+# ML libraries
+if(BUILD_PT_COUPLING)
+   set(Torch_DIR /home/jwa34/MiMA_datawave/src/shared/pytorch/venv/lib/python3.11/site-packages/torch/share/cmake/Torch)
+   find_package(Torch REQUIRED)
+
+   # Library with C and Fortran bindings
+   add_library(ftorch SHARED src/atmos_param/cg_drag/ctorch.cpp src/atmos_param/cg_drag/ftorch.f90)
+   add_library(FTorch::ftorch ALIAS ftorch)
+   set_target_properties(ftorch PROPERTIES
+     PUBLIC_HEADER "src/atmos_param/cg_drag/ctorch.h"
+     Fortran_MODULE_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+     )
+   target_link_libraries(ftorch PRIVATE ${TORCH_LIBRARIES})
+   target_include_directories(ftorch
+     PUBLIC
+       $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/modules>
+       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+       )
+
+   # Install library, create target file
+   install(TARGETS "ftorch"
+	   EXPORT FTorch
+     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+     PRIVATE_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+     )
+   
+   # Install target file
+   install(EXPORT FTorch
+	   FILE FTorchConfig.cmake
+	   NAMESPACE FTorch::
+     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+     )
+   
+   # Install Fortran module files
+   install(FILES "${CMAKE_BINARY_DIR}/modules/ftorch.mod"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ftorch"
+    )
+
+   # link the pytorch/fortran libs to mima
+   target_link_libraries(mima.x PRIVATE FTorch::ftorch)
+
+   # point the pytorch coupling routines at mima
+   target_sources( mima.x PRIVATE src/atmos_param/cg_drag/pytorch.f90)
+endif()
+if(BUILD_FORPY_COUPLING)
+   # Make sure python present
+   find_package (Python REQUIRED COMPONENTS Development)
+   target_link_libraries( mima.x PRIVATE Python::Python )
+
+endif()
 
 # Find the NetCDF installations and set the relevant variables for compilation
 # Then link to executables

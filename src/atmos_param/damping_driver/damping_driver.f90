@@ -34,7 +34,7 @@ module damping_driver_mod
  implicit none
  private
 
- public   damping_driver, damping_driver_init, damping_driver_end, &
+ public   damping_driver, damping_driver_init, damping_driver_end
 
 !-----------------------------------------------------------------------
 !---------------------- namelist ---------------------------------------

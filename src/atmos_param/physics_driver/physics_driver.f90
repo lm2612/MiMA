@@ -122,7 +122,7 @@ use radiative_gases_mod,     only: radiative_gases_init,   &
 
 use damping_driver_mod,      only: damping_driver,      &
                                    damping_driver_init, &
-                                   damping_driver_end, &
+                                   damping_driver_end
 
 use grey_radiation_mod, only: grey_radiation_init, grey_radiation, grey_radiation_end
 

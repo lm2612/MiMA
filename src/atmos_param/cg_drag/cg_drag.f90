@@ -833,8 +833,8 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
        ! START OF ML COUPLING CHANGES
        
 
-       if (run_ML) then:
-         call cg_drag_ML (uuu, vvv, , lat, gwfcng_x, gwfcng_y)
+       if (runML) then
+         call cg_drag_ML (uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
        else
 
          ! AD99 Parameterisation from original code
