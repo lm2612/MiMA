@@ -86,6 +86,12 @@ add_subdirectory( src/ice_param )
 # include/fms_platform.h
 add_subdirectory( src/shared )
 
+option(BUILD_TF_COUPLING "Enable building the TensorFlow coupling")
+if(BUILD_TF_COUPLING)
+    find_package(FortranTensorFlow)
+    target_link_libraries( mima.x PRIVATE FortranTensorFlow::fortran-tf)
+    message( STATUS "Building with Fortran TensorFlow coupling")
+endif()
 # Set coompile options for executable
 target_compile_options( mima.x PRIVATE
 -fpp
