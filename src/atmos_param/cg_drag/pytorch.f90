@@ -16,7 +16,7 @@ private
 public    cg_drag_ML_init, cg_drag_ML_end, cg_drag_ML
 
 !--------------------------------------------------------------------
-!   data used in this module
+!   data used in this module to bind to FTorch
 !
 !--------------------------------------------------------------------
 !   model    ML model type bound to python
@@ -40,7 +40,7 @@ contains
 
 !####################################################################
 
-subroutine cg_drag_ML_init(model_path)
+subroutine cg_drag_ML_init(model_dir, model_name)
 
   !-----------------------------------------------------------------
   !    cg_drag_ML_init is called from cg_drag_init and initialises
@@ -52,15 +52,17 @@ subroutine cg_drag_ML_init(model_path)
   !-----------------------------------------------------------------
   !    intent(in) variables:
   !
-  !       model_path    full filepath to the model
+  !       model_dir    full filepath to the model directory
+  !       model_name   filename of the TorchScript model
   !
   !-----------------------------------------------------------------
-  character(len=1024), intent(in)        :: model_path
+  character(len=1024), intent(in)        :: model_dir
+  character(len=1024), intent(in)        :: model_name
   
   !-----------------------------------------------------------------
   
   ! Initialise the ML model to be used
-  model = torch_module_load(trim(model_path)//c_null_char)
+  model = torch_module_load(trim(model_dir)//trim(model_name)//c_null_char)
 
 end subroutine cg_drag_ML_init
 

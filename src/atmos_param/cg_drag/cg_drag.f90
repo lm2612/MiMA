@@ -166,8 +166,10 @@ real,    dimension(MAX_PTS)  ::  lon_coords_gl=-999.
 logical :: runML=.false.
                                   ! are we using ML to calculate the drag?
 
-character(len=1024) :: model_path="undefined"
-                                  ! Full filepath to ML model on the system
+character(len=1024) :: model_dir="undefined/"
+                                  ! Full filepath to directory contaioning ML model
+character(len=1024) :: model_name="undefined"
+                                  ! Filename of ML model/name of script to run
 
 namelist / cg_drag_nml /         &
                           cg_drag_freq, cg_drag_offset, &
@@ -181,7 +183,7 @@ namelist / cg_drag_nml /         &
                           phi0n,phi0s,dphin,dphis, Bw, Bn, cw, cwtropics, cn, flag, &
                           weightminus2, weightminus1, weighttop,kelvin_kludge,&
                           ! Added for ML
-                          runML, model_path
+                          runML, model_dir, model_name
 
 
 !--------------------------------------------------------------------
@@ -588,7 +590,7 @@ type(time_type),         intent(in)      :: Time
 !    initialize the ML functionalities
 !---------------------------------------------------------------------
       if (runML) then
-        call cg_drag_ML_init(model_path)
+        call cg_drag_ML_init(model_dir, model_name)
       endif
 
 !---------------------------------------------------------------------

@@ -130,7 +130,8 @@
      damp_level_pressure = 0.85e+02,
      cg_drag_freq = 21600,
      runML = .true.,
-     model_path = 'unknown' /
+     model_dir = 'unknown',
+     model_name = 'unknown.ext'/
 
  &moist_processes_nml
      do_bm           =.true.,   
