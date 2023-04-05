@@ -106,6 +106,11 @@ subroutine cg_drag_ML_end
   !-----------------------------------------------------------------
   
   ! destroy the forpy objects
+  call py_model_dir%destroy
+  call paths%destroy
+  call run_emulator%destroy
+  call model%destroy
+
   call forpy_finalize
 
 end subroutine cg_drag_ML_end
@@ -124,8 +129,6 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   !-----------------------------------------------------------------
   !    intent(in) variables:
   !
-  !       is,js    starting subdomain i,j indices of data in 
-  !                the physics_window being integrated
   !       uuu,vvv  arrays of model u and v wind
   !       psfc     array of model surface pressure
   !       lat      array of model latitudes at cell boundaries [radians]
@@ -142,7 +145,7 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   real, dimension(:,:,:), intent(in)    :: uuu, vvv
   real, dimension(:,:),   intent(in)    :: lat, psfc
   
-  real, dimension(:,:,:), intent(out), target   :: gwfcng_x, gwfcng_y
+  real, dimension(:,:,:), intent(out)   :: gwfcng_x, gwfcng_y
   
   !-----------------------------------------------------------------
 
@@ -153,26 +156,16 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   !
   !---------------------------------------------------------------------
 
-  real, dimension(:,:), allocatable  :: uuu_flattened, vvv_flattened
-  real, dimension(:,:), allocatable, target  :: uuu_reshaped, vvv_reshaped
-  real, dimension(:), allocatable, target    :: lat_reshaped, psfc_reshaped
-  real, dimension(:,:), allocatable  :: gwfcng_x_flattened, gwfcng_y_flattened
-  real, dimension(:,:), allocatable, target  :: gwfcng_x_reshaped, gwfcng_y_reshaped
+  real, dimension(:,:), allocatable, asynchronous  :: uuu_flattened, vvv_flattened
+  real, dimension(:), allocatable, asynchronous    :: lat_reshaped, psfc_reshaped
+  real, dimension(:,:), allocatable, asynchronous  :: gwfcng_x_flattened, gwfcng_y_flattened
 
   integer :: imax, jmax, kmax, j
 
-  integer(c_int), parameter :: dims_2D = 2
-  integer(c_int64_t) :: shape_2D(dims_2D)
-  integer(c_int), parameter :: dims_1D = 2
-  integer(c_int64_t) :: shape_1D(dims_1D)
-  integer(c_int), parameter :: dims_out = 2
-  integer(c_int64_t) :: shape_out(dims_out)
+  ! forpy variables
+  type(ndarray)      :: uuu_nd, vvv_nd, psfc_nd, lat_nd, gwfcng_x_nd, gwfcng_y_nd
+  type(tuple)        :: args
 
-  ! Set up types of input and output data and the interface with C
-  type(torch_tensor) :: gwfcng_x_tensor, gwfcng_y_tensor
-  integer(c_int), parameter :: n_inputs = 3
-  type(torch_tensor), dimension(n_inputs), target :: model_input_arr
-  
   !----------------------------------------------------------------
 
   ! reshape tensors as required
@@ -180,21 +173,13 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   jmax = size(uuu, 2)
   kmax = size(uuu, 3)
 
-  ! Note that the '1D' tensor has 2 dimensions, one of which is size 1
-  shape_2D = (/ imax*jmax, kmax /)
-  shape_1D = (/ imax*jmax, 1 /)
-
   ! flatten data (nlat, nlon, n) --> (nlat*nlon, n)
   allocate( uuu_flattened(imax*jmax, kmax) )
   allocate( vvv_flattened(imax*jmax, kmax) )
-  allocate( uuu_reshaped(kmax, imax*jmax) )
-  allocate( vvv_reshaped(kmax, imax*jmax) )
   allocate( lat_reshaped(imax*jmax) )
   allocate( psfc_reshaped(imax*jmax) )
   allocate( gwfcng_x_flattened(imax*jmax, kmax) )
   allocate( gwfcng_y_flattened(imax*jmax, kmax) )
-  allocate( gwfcng_x_reshaped(kmax, imax*jmax) )
-  allocate( gwfcng_y_reshaped(kmax, imax*jmax) )
 
   do j=1,jmax
       uuu_flattened((j-1)*imax+1:j*imax,:) = uuu(:,j,:)
@@ -203,52 +188,57 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
       psfc_reshaped((j-1)*imax+1:j*imax) = psfc(:,j)/100
   end do
 
-  uuu_reshaped = TRANSPOSE(uuu_flattened)
-  vvv_reshaped = TRANSPOSE(vvv_flattened)
+  ! creates numpy arrays
+  ie = ndarray_create_nocopy(uuu_nd, uuu_flattened)
+  ie = ndarray_create_nocopy(vvv_nd, vvv_flattened)
+  ie = ndarray_create_nocopy(lat_nd, lat_reshaped)
+  ie = ndarray_create_nocopy(psfc_nd, psfc_reshaped)
+  ie = ndarray_create_nocopy(gwfcng_x_nd, gwfcng_x_flattened)
+  ie = ndarray_create_nocopy(gwfcng_y_nd, gwfcng_y_flattened)
 
-  ! Create input/output tensors from the above arrays
-  model_input_arr(2) = torch_tensor_from_blob(c_loc(lat_reshaped), dims_1D, shape_1D, torch_kFloat64, torch_kCPU)
-  model_input_arr(3) = torch_tensor_from_blob(c_loc(psfc_reshaped), dims_1D, shape_1D, torch_kFloat64, torch_kCPU)
+  ! create model input args as tuple
+  ie = tuple_create(args,6)
+  ie = args%setitem(0,model)
+  ie = args%setitem(2,lat_nd)
+  ie = args%setitem(3,psfc_nd)
+  ie = args%setitem(5,jmax)
+  
+  Y_out=0.0 
   
   ! Zonal
-  model_input_arr(1) = torch_tensor_from_blob(c_loc(uuu_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
-  gwfcng_x_tensor = torch_tensor_from_blob(c_loc(gwfcng_x_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
+  ie = args%setitem(1,uuu_nd)
+  ie = args%setitem(4,gwfcng_x_nd)
   ! Run model and Infer
-  call torch_module_forward(model, model_input_arr, n_inputs, gwfcng_x_tensor)
+  ie = call_py_noret(run_emulator, "compute_reshape_drag", args)
   
   ! Meridional
-  model_input_arr(1) = torch_tensor_from_blob(c_loc(vvv_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
-  gwfcng_y_tensor = torch_tensor_from_blob(c_loc(gwfcng_y_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
+  ie = args%setitem(1,vvv_nd)
+  ie = args%setitem(4,gwfcng_y_nd)
   ! Run model and Infer
-  call torch_module_forward(model, model_input_arr, n_inputs, gwfcng_y_tensor)
+  ie = call_py_noret(run_emulator, "compute_reshape_drag", args)
 
 
-  ! Convert back into fortran types, reshape, and assign to gwfcng
-  gwfcng_x_flattened = TRANSPOSE(gwfcng_x_reshaped)
-  gwfcng_y_flattened = TRANSPOSE(gwfcng_y_reshaped)
-  
+  ! Reshape, and assign to gwfcng
   do j=1,jmax
       gwfcng_x(:,j,:) = gwfcng_x_flattened((j-1)*imax+1:j*imax,:)
       gwfcng_y(:,j,:) = gwfcng_y_flattened((j-1)*imax+1:j*imax,:)
   end do
 
   ! Cleanup
-  call torch_tensor_delete(model_input_arr(1))
-  call torch_tensor_delete(model_input_arr(2))
-  call torch_tensor_delete(model_input_arr(3))
-  !call torch_tensor_delete(model_input_arr)
-  call torch_tensor_delete(gwfcng_x_tensor)
-  call torch_tensor_delete(gwfcng_y_tensor)
+  call uuu_nd%destroy
+  call vvv_nd%destroy
+  call psfc_nd%destroy
+  call lat_nd%destroy
+  call gwfcng_x_nd%destroy
+  call gwfcng_y_nd%destroy
+  call args%destroy
+  
   deallocate( uuu_flattened )
   deallocate( vvv_flattened )
-  deallocate( uuu_reshaped )
-  deallocate( vvv_reshaped )
   deallocate( lat_reshaped )
   deallocate( psfc_reshaped )
   deallocate( gwfcng_x_flattened )
   deallocate( gwfcng_y_flattened )
-  deallocate( gwfcng_x_reshaped )
-  deallocate( gwfcng_y_reshaped )
 
 
 end subroutine cg_drag_ML
