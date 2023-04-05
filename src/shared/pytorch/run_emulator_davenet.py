@@ -59,22 +59,15 @@ def compute_reshape_drag(*args):
         Results to be returned to MiMA
     """
     model, wind, lat, p_surf, Y_out, num_col = args
-    imax = 128
 
     # Reshape and put all input variables together [wind, lat, p_surf]
-    # wind_T = zeros((imax * num_col, 40), dtype=float64)
-    wind_T = reshape(
-        tensor(wind), (imax * num_col, 40)
-    )
+    wind_T = tensor(wind)
 
-    lat_T = reshape(
-        tensor(lat), (imax * num_col, 1)
-    )
+    # lat_T = zeros((imax * num_col, 1), dtype=float64)
+    lat_T = tensor(lat)
 
     # pressure_T = zeros((imax * num_col, 1), dtype=float64)
-    pressure_T = reshape(
-        tensor(p_surf), (imax * num_col, 1)
-    )
+    pressure_T = tensor(p_surf)
 
     # Apply model.
     with no_grad():
@@ -83,8 +76,8 @@ def compute_reshape_drag(*args):
         assert model.training is False
         temp = model(wind_T, lat_T, pressure_T)
 
-    # Reshape into what MiMA needs.
-    # Y_out[i,j,:] was temp[i*num_col+j,:].
-    Y_out[:, :, :] = reshape(temp, (imax, num_col, 40))
+    # Place in output array for MiMA.
+    Y_out[:, :, :] = temp
     del temp
+
     return Y_out
