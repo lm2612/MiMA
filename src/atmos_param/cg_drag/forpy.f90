@@ -1,13 +1,14 @@
 module cg_drag_ML_mod
 
 use constants_mod, only:  RADIAN
+use fms_mod,       only:  error_mesg, FATAL
 
 ! Import forpy module for interfacing
 use forpy_mod,              only:  import_py, module_py, call_py, object, ndarray, &
                                    forpy_initialize, forpy_finalize, tuple, tuple_create, &
                                    ndarray_create, cast, print_py, dict, dict_create, err_print, &
                                    call_py_noret, list, get_sys_path, ndarray_create_nocopy, &
-                                   ndarray_create_empty, ndarray_create_zeros
+                                   ndarray_create_empty, ndarray_create_zeros, str, str_create
 
 !-------------------------------------------------------------------
 
@@ -76,7 +77,7 @@ subroutine cg_drag_ML_init(model_dir, model_name)
   ! Add the directory containing forpy related scripts and data to sys.path
   ie = str_create(py_model_dir, trim(model_dir))
   ie = get_sys_path(paths)
-  ie = paths%append(py_pypath)
+  ie = paths%append(py_model_dir)
   
   ! import python modules to `run_emulator`
   ie = import_py(run_emulator, trim(model_name))
@@ -106,7 +107,9 @@ subroutine cg_drag_ML_end
   !-----------------------------------------------------------------
   
   ! destroy the forpy objects
-  call py_model_dir%destroy
+  !
+  ! according to forpy no destroy nethod for strings such as 
+  ! py_model_dir. Because they are just C under the hood?
   call paths%destroy
   call run_emulator%destroy
   call model%destroy
@@ -202,8 +205,6 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   ie = args%setitem(2,lat_nd)
   ie = args%setitem(3,psfc_nd)
   ie = args%setitem(5,jmax)
-  
-  Y_out=0.0 
   
   ! Zonal
   ie = args%setitem(1,uuu_nd)
