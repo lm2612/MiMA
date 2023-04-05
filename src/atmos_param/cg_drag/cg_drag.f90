@@ -17,6 +17,8 @@ use constants_mod,          only:  constants_init, PI, RDGAS, GRAV, CP_AIR, &
                                    SECONDS_PER_DAY
 use TF_Types ! placeholder to make MiMA depend on libfortran-tf
 
+use cg_drag_ML_mod,              only:  cg_drag_ML_init, cg_drag_ML_end, cg_drag_ML
+
 #ifdef COL_DIAG
 use column_diagnostics_mod, only:  column_diagnostics_init, &
                                    initialize_diagnostic_columns, &
@@ -162,6 +164,13 @@ real,    dimension(MAX_PTS)  ::  lon_coords_gl=-999.
                                   ! longitudes for latlon diagnostic 
                                   ! columns [ degrees, 0. -> 360. ]
 
+logical :: runML=.false.
+                                  ! are we using ML to calculate the drag?
+
+character(len=1024) :: model_dir="undefined/"
+                                  ! Full filepath to directory contaioning ML model
+character(len=1024) :: model_name="undefined"
+                                  ! Filename of ML model/name of script to run
 
 namelist / cg_drag_nml /         &
                           cg_drag_freq, cg_drag_offset, &
@@ -173,7 +182,9 @@ namelist / cg_drag_nml /         &
                           i_coords_gl, j_coords_gl,   &
                           lat_coords_gl, lon_coords_gl, &
                           phi0n,phi0s,dphin,dphis, Bw, Bn, cw, cwtropics, cn, flag, &
-                          weightminus2, weightminus1, weighttop,kelvin_kludge
+                          weightminus2, weightminus1, weighttop,kelvin_kludge,&
+                          ! Added for ML
+                          runML, model_dir, model_name
 
 
 !--------------------------------------------------------------------
@@ -573,7 +584,16 @@ type(time_type),         intent(in)      :: Time
      endif
 !!$      endif
 !!$      vers = restart_versions(size(restart_versions(:)))
-!!$     old_time_step = cgdrag_alarm 
+!!$     old_time_step = cgdrag_alarm
+
+
+!---------------------------------------------------------------------
+!    initialize the ML functionalities
+!---------------------------------------------------------------------
+      if (runML) then
+        call cg_drag_ML_init(model_dir, model_name)
+      endif
+
 !---------------------------------------------------------------------
 !    mark the module as initialized.
 !---------------------------------------------------------------------
@@ -620,7 +640,7 @@ end subroutine cg_drag_endts
 
 !####################################################################
 
-subroutine cg_drag_calc (is, js, lat, pfull, zfull, temp, uuu, vvv,  &
+subroutine cg_drag_calc (is, js, lat, pfull, zfull, psfc, temp, uuu, vvv,  &
                          Time, delt, gwfcng_x, gwfcng_y)
 !--------------------------------------------------------------------  
 !    cg_drag_calc defines the arrays needed to calculate the convective
@@ -632,7 +652,7 @@ subroutine cg_drag_calc (is, js, lat, pfull, zfull, temp, uuu, vvv,  &
 
 !---------------------------------------------------------------------
 integer,                intent(in)      :: is, js
-real, dimension(:,:),   intent(in)      :: lat
+real, dimension(:,:),   intent(in)      :: lat, psfc
 real, dimension(:,:,:), intent(in)      :: pfull, zfull, temp, uuu, vvv
 type(time_type),        intent(in)      :: Time
 real           ,        intent(in)      :: delt
@@ -814,18 +834,25 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
 !      - Tensorflow coupling  !TODO
 !---------------------------------------------------------------------
        ! START OF ML COUPLING CHANGES
-       ! 1 - AD99 Parameterisation from original code
-       call gwfc (is, ie, js, je, damp_level, source_level, source_amp, lat,   &
-                     zden, zu, zbf,zzchm, gwd_xtnd, ked_xtnd)
-       gwfcng_x  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
-
-       call gwfc (is, ie, js, je, damp_level, source_level, source_amp,  lat,  &
-                     zden, zv, zbf,zzchm, gwd_ytnd, ked_ytnd)
-       gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
        
+
+       if (runML) then
+         call cg_drag_ML (uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
+       else
+
+         ! AD99 Parameterisation from original code
+         call gwfc (is, ie, js, je, damp_level, source_level, source_amp, lat,   &
+                       zden, zu, zbf,zzchm, gwd_xtnd, ked_xtnd)
+         gwfcng_x  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
+
+         call gwfc (is, ie, js, je, damp_level, source_level, source_amp,  lat,  &
+                       zden, zv, zbf,zzchm, gwd_ytnd, ked_ytnd)
+         gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
+       
+       endif
+
        ! 2 - forpy coupling to pytorch based on previous implementation
-       !     - Prepare data to go out
-       !     - Call python script
+
 
        ! 3 - Torchscript Coupling
        !     - Generate Tensor
@@ -837,8 +864,8 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
 
 
        ! TODO ked is only ever used as a diagnostic to be written out - we do not need to calculate it!
-       ked_gwfc_x(:,:,1:kmax) = ked_xtnd(:,:,1:kmax  )
-       ked_gwfc_y(:,:,1:kmax) = ked_ytnd(:,:,1:kmax  )
+       ! ked_gwfc_x(:,:,1:kmax) = ked_xtnd(:,:,1:kmax  )
+       ! ked_gwfc_y(:,:,1:kmax) = ked_ytnd(:,:,1:kmax  )
        
        ! END OF ML COUPLING CHANGES
           
@@ -970,6 +997,13 @@ subroutine cg_drag_end
         call close_column_diagnostics_units (diag_units)
       endif
 #endif
+
+!---------------------------------------------------------------------
+!    Clean up any ML detritus.
+!---------------------------------------------------------------------
+      if (runML) then
+        call cg_drag_ML_end
+      endif
 
 !---------------------------------------------------------------------
 !    mark the module as uninitialized.

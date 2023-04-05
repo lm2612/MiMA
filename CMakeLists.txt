@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.2)
 #policy CMP0076 - target_sources source files are relative to file where target_sources is run
 cmake_policy (SET CMP0076 NEW)
 
+option(BUILD_PT_COUPLING "Build the PyTorch coupling code")
+option(BUILD_TF_COUPLING "Build the TensorFlow coupling code")
+option(BUILD_FORPY_COUPLING "Build the Forpy coupling code")
+
 # MiMA claims to only compile with ifort / icc currently.
 set ( CMAKE_Fortran_COMPILER "ifort" )
 set ( CMAKE_C_COMPILER "icc" )
@@ -33,11 +37,24 @@ endif()
 find_package (MPI REQUIRED)
 target_link_libraries( mima.x PRIVATE MPI::MPI_Fortran )
 
-find_package (Python REQUIRED COMPONENTS Development)
-target_link_libraries( mima.x PRIVATE Python::Python )
-
 find_package (OpenMP REQUIRED COMPONENTS Fortran)
 target_link_libraries( mima.x PRIVATE OpenMP::OpenMP_Fortran )
+
+# ML libraries
+if(BUILD_PT_COUPLING)
+    find_package(FTorch)
+    target_link_libraries( mima.x PRIVATE FTorch::ftorch )
+    message(STATUS "Building with the Fortran PyTorch coupling")
+
+   # point the pytorch coupling routines at mima
+   target_sources( mima.x PRIVATE src/atmos_param/cg_drag/pytorch.f90)
+endif()
+if(BUILD_FORPY_COUPLING)
+   # Make sure python present
+   find_package (Python REQUIRED COMPONENTS Development)
+   target_link_libraries( mima.x PRIVATE Python::Python )
+
+endif()
 
 # Find the NetCDF installations and set the relevant variables for compilation
 # Then link to executables
