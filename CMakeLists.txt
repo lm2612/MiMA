@@ -41,6 +41,9 @@ find_package (OpenMP REQUIRED COMPONENTS Fortran)
 target_link_libraries( mima.x PRIVATE OpenMP::OpenMP_Fortran )
 
 # Find any libraries as neccesary for ML and link
+# FIXME this is a bit clunky.  I think we will have to have
+# #ifdefs in the code, so may as well use them for this.
+# Also this setup precludes having multiple methods compiled in.
 if(BUILD_PT_COUPLING)
    find_package(FTorch)
    target_link_libraries( mima.x PRIVATE FTorch::ftorch )
@@ -64,6 +67,9 @@ if(BUILD_FORPY_COUPLING)
 
    target_sources( mima.x PRIVATE src/shared/forpy/forpy_mod.f90)
    target_sources( mima.x PRIVATE src/atmos_param/cg_drag/forpy.f90)
+endif()
+if(NOT (BUILD_PT_COUPLING OR BUILD_TF_COUPLING OR BUILD_FORPY_COUPLING))
+    target_sources( mima.x PRIVATE src/atmos_param/cg_drag/null.f90)
 endif()
 
 # Find the NetCDF installations and set the relevant variables for compilation
