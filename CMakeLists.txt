@@ -47,45 +47,9 @@ target_link_libraries( mima.x PRIVATE OpenMP::OpenMP_Fortran )
 
 # Find any libraries as neccesary for ML and link
 if(BUILD_PT_COUPLING)
-   set(Torch_DIR /home/jwa34/MiMA_datawave/src/shared/pytorch/venv/lib/python3.11/site-packages/torch/share/cmake/Torch)
-   find_package(Torch REQUIRED)
-
-   # Library with C and Fortran bindings
-   add_library(ftorch SHARED src/atmos_param/cg_drag/ctorch.cpp src/atmos_param/cg_drag/ftorch.f90)
-   add_library(FTorch::ftorch ALIAS ftorch)
-   set_target_properties(ftorch PROPERTIES
-     PUBLIC_HEADER "src/atmos_param/cg_drag/ctorch.h"
-     Fortran_MODULE_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
-     )
-   target_link_libraries(ftorch PRIVATE ${TORCH_LIBRARIES})
-   target_include_directories(ftorch
-     PUBLIC
-       $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/modules>
-       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-       )
-
-   # Install library, create target file
-   install(TARGETS "ftorch"
-	   EXPORT FTorch
-     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-     PRIVATE_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-     )
-   
-   # Install target file
-   install(EXPORT FTorch
-	   FILE FTorchConfig.cmake
-	   NAMESPACE FTorch::
-     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
-     )
-   
-   # Install Fortran module files
-   install(FILES "${CMAKE_BINARY_DIR}/modules/ftorch.mod"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ftorch"
-    )
-
-   # link the pytorch/fortran libs to mima
-   target_link_libraries(mima.x PRIVATE FTorch::ftorch)
+   find_package(FTorch)
+   target_link_libraries( mima.x PRIVATE FTorch::ftorch )
+   message(STATUS "Building with the Fortran PyTorch coupling")
 
    # point the pytorch coupling routines at mima
    target_sources( mima.x PRIVATE src/atmos_param/cg_drag/pytorch.f90)
