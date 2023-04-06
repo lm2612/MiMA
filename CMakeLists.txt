@@ -54,7 +54,7 @@ if(BUILD_FORPY_COUPLING)
    find_package (Python REQUIRED COMPONENTS Development)
    target_link_libraries( mima.x PRIVATE Python::Python )
 
-   target_sources( mima.x PRIVATE src/atmos_param/cg_drag/forpy_mod.f90)
+   target_sources( mima.x PRIVATE src/shared/forpy/forpy_mod.f90)
    target_sources( mima.x PRIVATE src/atmos_param/cg_drag/forpy.f90)
 endif()
 
