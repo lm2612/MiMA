@@ -15,7 +15,6 @@ use diag_manager_mod,       only:  diag_manager_init,   &
                                    register_diag_field, send_data
 use constants_mod,          only:  constants_init, PI, RDGAS, GRAV, CP_AIR, &
                                    SECONDS_PER_DAY
-use TF_Types ! placeholder to make MiMA depend on libfortran-tf
 
 use cg_drag_ML_mod,              only:  cg_drag_ML_init, cg_drag_ML_end, cg_drag_ML
 

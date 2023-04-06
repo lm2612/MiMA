@@ -46,8 +46,16 @@ if(BUILD_PT_COUPLING)
     target_link_libraries( mima.x PRIVATE FTorch::ftorch )
     message(STATUS "Building with the Fortran PyTorch coupling")
 
-   # point the pytorch coupling routines at mima
-   target_sources( mima.x PRIVATE src/atmos_param/cg_drag/pytorch.f90)
+    # point the pytorch coupling routines at mima
+    target_sources( mima.x PRIVATE src/atmos_param/cg_drag/pytorch.f90)
+endif()
+if(BUILD_TF_COUPLING)
+    find_package(FortranTensorFlow)
+    target_link_libraries( mima.x PRIVATE FortranTensorFlow::fortran-tf)
+    message( STATUS "Building with Fortran TensorFlow coupling")
+
+    # point the pytorch coupling routines at mima
+    target_sources( mima.x PRIVATE src/atmos_param/cg_drag/tensorflow.f90)
 endif()
 if(BUILD_FORPY_COUPLING)
    # Make sure python present
@@ -105,12 +113,6 @@ add_subdirectory( src/ice_param )
 # include/fms_platform.h
 add_subdirectory( src/shared )
 
-option(BUILD_TF_COUPLING "Enable building the TensorFlow coupling")
-if(BUILD_TF_COUPLING)
-    find_package(FortranTensorFlow)
-    target_link_libraries( mima.x PRIVATE FortranTensorFlow::fortran-tf)
-    message( STATUS "Building with Fortran TensorFlow coupling")
-endif()
 # Set coompile options for executable
 target_compile_options( mima.x PRIVATE
 -fpp
