@@ -16,6 +16,8 @@ use diag_manager_mod,       only:  diag_manager_init,   &
 use constants_mod,          only:  constants_init, PI, RDGAS, GRAV, CP_AIR, &
                                    SECONDS_PER_DAY
 
+use mpp_mod,                only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
+
 use cg_drag_ML_mod,              only:  cg_drag_ML_init, cg_drag_ML_end, cg_drag_ML
 
 #ifdef COL_DIAG
@@ -694,7 +696,7 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
       integer           :: iz0
       logical           :: used
       real              :: bflim = 2.5E-5
-      integer           :: ie, je
+      integer           :: ie, je, timer_id
       integer           :: imax, jmax, kmax
       integer           :: i, j, k, nn
       real              :: pif = 3.14159265358979/180.
@@ -827,13 +829,15 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
 !    there are multiple options for calculating the gravity wave forcing
 !    gwfcng_x, gwfcng_y:
 !    - AD99 Parameterisation (gwfc subroutine)
-!    - Wavenet ML model via:  !TODO
-!      - forpy python coupling,  !TODO
-!      - PyTorch TorchScript coupling  !TODO
-!      - Tensorflow coupling  !TODO
+!    - Wavenet ML model via:
+!      - forpy python coupling,
+!      - PyTorch TorchScript coupling,
+!      - Tensorflow coupling
 !---------------------------------------------------------------------
        ! START OF ML COUPLING CHANGES
-       
+
+       timer_id = mpp_clock_id( 'cg_drag' )
+       call mpp_clock_begin(timer_id)
 
        if (runML) then
          call cg_drag_ML (uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
@@ -848,23 +852,13 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
                        zden, zv, zbf,zzchm, gwd_ytnd, ked_ytnd)
          gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
        
+         ! TODO ked is only ever used as a diagnostic to be written out - we do not need to calculate it!
+         ! ked_gwfc_x(:,:,1:kmax) = ked_xtnd(:,:,1:kmax  )
+         ! ked_gwfc_y(:,:,1:kmax) = ked_ytnd(:,:,1:kmax  )
+       
        endif
 
-       ! 2 - forpy coupling to pytorch based on previous implementation
-
-
-       ! 3 - Torchscript Coupling
-       !     - Generate Tensor
-       !     - Call Pytorch
-
-       ! 4 - TensorFlow Coupling
-       !     - Generate Tensor
-       !     - Call TensorFlow
-
-
-       ! TODO ked is only ever used as a diagnostic to be written out - we do not need to calculate it!
-       ! ked_gwfc_x(:,:,1:kmax) = ked_xtnd(:,:,1:kmax  )
-       ! ked_gwfc_y(:,:,1:kmax) = ked_ytnd(:,:,1:kmax  )
+       call mpp_clock_end(timer_id)
        
        ! END OF ML COUPLING CHANGES
           
