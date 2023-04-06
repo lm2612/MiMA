@@ -33,18 +33,18 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/bin" CACHE PATH "..." FORCE)
 endif()
 
-# Find MPI, OpenMP, and python libraries and link
+# Find MPI and OpenMP libraries and link
 find_package (MPI REQUIRED)
 target_link_libraries( mima.x PRIVATE MPI::MPI_Fortran )
 
 find_package (OpenMP REQUIRED COMPONENTS Fortran)
 target_link_libraries( mima.x PRIVATE OpenMP::OpenMP_Fortran )
 
-# ML libraries
+# Find any libraries as neccesary for ML and link
 if(BUILD_PT_COUPLING)
-    find_package(FTorch)
-    target_link_libraries( mima.x PRIVATE FTorch::ftorch )
-    message(STATUS "Building with the Fortran PyTorch coupling")
+   find_package(FTorch)
+   target_link_libraries( mima.x PRIVATE FTorch::ftorch )
+   message(STATUS "Building with the Fortran PyTorch coupling")
 
    # point the pytorch coupling routines at mima
    target_sources( mima.x PRIVATE src/atmos_param/cg_drag/pytorch.f90)
@@ -54,6 +54,8 @@ if(BUILD_FORPY_COUPLING)
    find_package (Python REQUIRED COMPONENTS Development)
    target_link_libraries( mima.x PRIVATE Python::Python )
 
+   target_sources( mima.x PRIVATE src/atmos_param/cg_drag/forpy_mod.f90)
+   target_sources( mima.x PRIVATE src/atmos_param/cg_drag/forpy.f90)
 endif()
 
 # Find the NetCDF installations and set the relevant variables for compilation
