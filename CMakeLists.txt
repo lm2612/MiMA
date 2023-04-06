@@ -9,12 +9,7 @@ option(BUILD_FORPY_COUPLING "Build the Forpy coupling code")
 # MiMA claims to only compile with ifort / icc currently.
 set ( CMAKE_Fortran_COMPILER "ifort" )
 set ( CMAKE_C_COMPILER "icc" )
-if(BUILD_PT_COUPLING)
-   set ( CMAKE_CXX_COMPILER "icc" )
-   project(MiMA Fortran C CXX)
-else()
-   project(MiMA Fortran C)
-endif()
+project(MiMA Fortran C)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
