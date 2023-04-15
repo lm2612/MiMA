@@ -194,8 +194,7 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
       uuu_flattened((j-1)*imax+1:j*imax,:) = uuu(:,j,:)
       vvv_flattened((j-1)*imax+1:j*imax,:) = vvv(:,j,:)
       lat_reshaped((j-1)*imax+1:j*imax, 1) = lat(:,j)*RADIAN
-      !psfc_reshaped((j-1)*imax+1:j*imax, 1) = psfc(:,j)/100
-      psfc_reshaped((j-1)*imax+1:j*imax, 1) = psfc(:,j)
+      psfc_reshaped((j-1)*imax+1:j*imax, 1) = psfc(:,j)/100
   end do
 
   ! creates numpy arrays
