@@ -26,7 +26,6 @@ def initialize(path_weights_stats="network_wst.pkl"):
     # Load weights and set to evaluation mode.
     model.load_state_dict(checkpoint["weights"])
     model.eval()
-    del checkpoint
     return model
 
 
@@ -77,7 +76,6 @@ def compute_reshape_drag(*args):
         temp = model(wind_T, lat_T, pressure_T)
 
     # Place in output array for MiMA.
-    Y_out[:, :, :] = temp
-    del temp
+    Y_out[:, :] = temp
 
     return Y_out

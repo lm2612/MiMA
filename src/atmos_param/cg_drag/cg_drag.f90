@@ -659,6 +659,9 @@ type(time_type),        intent(in)      :: Time
 real           ,        intent(in)      :: delt
 real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
 
+! FIXME
+real, dimension(:,:,:), allocatable     :: gwfcng_x_AD, gwfcng_y_AD
+
 !-------------------------------------------------------------------
 !    intent(in) variables:
 !
@@ -839,24 +842,36 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
        timer_id = mpp_clock_id( 'cg_drag' )
        call mpp_clock_begin(timer_id)
 
-       if (runML) then
+       allocate(gwfcng_x_AD(size(gwfcng_x, 1), size(gwfcng_x, 2), size(gwfcng_x, 3)))
+       allocate(gwfcng_y_AD(size(gwfcng_y, 1), size(gwfcng_y, 2), size(gwfcng_y, 3)))
+!       if (runML) then
          call cg_drag_ML (uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
-       else
+!       else
 
          ! AD99 Parameterisation from original code
          call gwfc (is, ie, js, je, damp_level, source_level, source_amp, lat,   &
                        zden, zu, zbf,zzchm, gwd_xtnd, ked_xtnd)
-         gwfcng_x  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
+         gwfcng_x_AD  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
 
          call gwfc (is, ie, js, je, damp_level, source_level, source_amp,  lat,  &
                        zden, zv, zbf,zzchm, gwd_ytnd, ked_ytnd)
-         gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
+         gwfcng_y_AD  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
+
        
          ! TODO ked is only ever used as a diagnostic to be written out - we do not need to calculate it!
          ! ked_gwfc_x(:,:,1:kmax) = ked_xtnd(:,:,1:kmax  )
          ! ked_gwfc_y(:,:,1:kmax) = ked_ytnd(:,:,1:kmax  )
        
-       endif
+!       endif
+      if (mpp_pe() == mpp_root_pe()) then
+        write(*,*)'AD output'
+        write(*,*) gwfcng_x_AD
+        write(*,*)'ML output'
+        write(*,*) gwfcng_x
+      endif
+       stop
+       deallocate(gwfcng_x_AD)
+       deallocate(gwfcng_y_AD)
 
        call mpp_clock_end(timer_id)
        

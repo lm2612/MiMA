@@ -75,21 +75,27 @@ subroutine cg_drag_ML_init(model_dir, model_name)
   ie = forpy_initialize()
   
   ! Add the directory containing forpy related scripts and data to sys.path
+  ! This does not appear to work?
+  ! export PYTHONPATH=model_dir in the job environment.
   ie = str_create(py_model_dir, trim(model_dir))
   ie = get_sys_path(paths)
   ie = paths%append(py_model_dir)
   
   ! import python modules to `run_emulator`
+  ! Note, this will need to be able to load its dependencies
+  ! such as `torch`, so you will probably need a venv.
   ie = import_py(run_emulator, trim(model_name))
+  if (ie .ne. 0) then
+      call err_print
+      call error_mesg('cg_drag', 'forpy model not loaded', FATAL)
+  end if
   
   ! call initialize function from `run_emulator` python module
   ! loads a trained model to `model`
   ie = call_py(model, run_emulator, "initialize")
   if (ie .ne. 0) then
       call err_print
-      call error_mesg('cg_drag', 'forpy model not found', FATAL)
-  else
-      print *, 'cg_drag: loaded forpy model.'
+      call error_mesg('cg_drag', 'call to `initialize` failed', FATAL)
   end if
 
 end subroutine cg_drag_ML_init
@@ -160,7 +166,7 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   !---------------------------------------------------------------------
 
   real, dimension(:,:), allocatable, asynchronous  :: uuu_flattened, vvv_flattened
-  real, dimension(:), allocatable, asynchronous    :: lat_reshaped, psfc_reshaped
+  real, dimension(:,:), allocatable, asynchronous    :: lat_reshaped, psfc_reshaped
   real, dimension(:,:), allocatable, asynchronous  :: gwfcng_x_flattened, gwfcng_y_flattened
 
   integer :: imax, jmax, kmax, j
@@ -179,16 +185,17 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   ! flatten data (nlat, nlon, n) --> (nlat*nlon, n)
   allocate( uuu_flattened(imax*jmax, kmax) )
   allocate( vvv_flattened(imax*jmax, kmax) )
-  allocate( lat_reshaped(imax*jmax) )
-  allocate( psfc_reshaped(imax*jmax) )
+  allocate( lat_reshaped(imax*jmax, 1) )
+  allocate( psfc_reshaped(imax*jmax, 1) )
   allocate( gwfcng_x_flattened(imax*jmax, kmax) )
   allocate( gwfcng_y_flattened(imax*jmax, kmax) )
 
   do j=1,jmax
       uuu_flattened((j-1)*imax+1:j*imax,:) = uuu(:,j,:)
       vvv_flattened((j-1)*imax+1:j*imax,:) = vvv(:,j,:)
-      lat_reshaped((j-1)*imax+1:j*imax) = lat(:,j)*RADIAN
-      psfc_reshaped((j-1)*imax+1:j*imax) = psfc(:,j)/100
+      lat_reshaped((j-1)*imax+1:j*imax, 1) = lat(:,j)*RADIAN
+      !psfc_reshaped((j-1)*imax+1:j*imax, 1) = psfc(:,j)/100
+      psfc_reshaped((j-1)*imax+1:j*imax, 1) = psfc(:,j)
   end do
 
   ! creates numpy arrays
@@ -211,12 +218,20 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   ie = args%setitem(4,gwfcng_x_nd)
   ! Run model and Infer
   ie = call_py_noret(run_emulator, "compute_reshape_drag", args)
+  if (ie .ne. 0) then
+      call err_print
+      call error_mesg('cg_drag_ML', 'inference x call failed', FATAL)
+  end if
   
   ! Meridional
   ie = args%setitem(1,vvv_nd)
   ie = args%setitem(4,gwfcng_y_nd)
   ! Run model and Infer
   ie = call_py_noret(run_emulator, "compute_reshape_drag", args)
+  if (ie .ne. 0) then
+      call err_print
+      call error_mesg('cg_drag_ML', 'inference y call failed', FATAL)
+  end if
 
 
   ! Reshape, and assign to gwfcng
