@@ -225,17 +225,11 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   !
   !---------------------------------------------------------------------
 
-  real, dimension(:,:), allocatable  :: uuu_flattened, vvv_flattened
   real, dimension(:,:), allocatable, target  :: uuu_reshaped, vvv_reshaped
   real, dimension(:,:), allocatable, target    :: lat_reshaped, psfc_reshaped
-  real, dimension(:,:), allocatable  :: gwfcng_x_flattened, gwfcng_y_flattened
 
   integer :: imax, jmax, kmax, j, k
 
-  integer(c_int), parameter :: dims_2D = 2
-  integer(c_int64_t) :: shape_2D(dims_2D)
-  integer(c_int), parameter :: dims_1D = 2
-  integer(c_int64_t) :: shape_1D(dims_1D)
   integer(c_int), parameter :: dims_out = 2
   integer(c_int64_t) :: shape_out(dims_out)
 
@@ -253,21 +247,15 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   kmax = size(uuu, 3)
 
   ! Note that the '1D' tensor has 2 dimensions, one of which is size 1
-  shape_2D = (/ imax*jmax, kmax /)
-  shape_1D = (/ imax*jmax, 1 /)
   shape_out = (/ kmax, imax*jmax /)
 
   ! flatten data (nlat, nlon, n) --> (nlat*nlon, n)
-  allocate( uuu_flattened(imax*jmax, kmax) )
-  allocate( vvv_flattened(imax*jmax, kmax) )
   allocate( uuu_reshaped(kmax, imax*jmax) )
   allocate( vvv_reshaped(kmax, imax*jmax) )
   allocate( lat_reshaped(1, imax*jmax) )
   allocate( psfc_reshaped(1, imax*jmax) )
 
   do j=1,jmax
-!      uuu_flattened((j-1)*imax+1:j*imax,:) = uuu(:,j,:)
-!      vvv_flattened((j-1)*imax+1:j*imax,:) = vvv(:,j,:)
       do k=1, kmax
           uuu_reshaped(k, (j-1)*imax+1:j*imax) = uuu(:,j,k)
           vvv_reshaped(k, (j-1)*imax+1:j*imax) = vvv(:,j,k)
@@ -275,9 +263,6 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
       lat_reshaped(1, (j-1)*imax+1:j*imax) = lat(:,j)*RADIAN
       psfc_reshaped(1, (j-1)*imax+1:j*imax) = psfc(:,j)/100
   end do
-
-!  uuu_reshaped = TRANSPOSE(uuu_flattened)
-!  vvv_reshaped = TRANSPOSE(vvv_flattened)
 
   ! Create input/output tensors from the above arrays
   model_input_arr(1) = r64_2_associate_tensor(lat_reshaped)
@@ -299,12 +284,12 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   ! Convert back into fortran types, reshape, and assign to gwfcng
   call c_f_pointer(TF_TensorData(gwfcng_x_tensors(1)), output_x_data_ptr, shape_out)
   call c_f_pointer(TF_TensorData(gwfcng_y_tensors(1)), output_y_data_ptr, shape_out)
-  gwfcng_x_flattened = TRANSPOSE(output_x_data_ptr)
-  gwfcng_y_flattened = TRANSPOSE(output_y_data_ptr)
   
   do j=1,jmax
-      gwfcng_x(:,j,:) = gwfcng_x_flattened((j-1)*imax+1:j*imax,:)
-      gwfcng_y(:,j,:) = gwfcng_y_flattened((j-1)*imax+1:j*imax,:)
+      do k=1, kmax
+          gwfcng_x(:,j,k) = output_x_data_ptr(k, (j-1)*imax+1:j*imax)
+          gwfcng_y(:,j,k) = output_y_data_ptr(k, (j-1)*imax+1:j*imax)
+      end do
   end do
 
   ! Cleanup
@@ -313,14 +298,10 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   call TF_DeleteTensor(model_input_arr(3))
   call TF_DeleteTensor(gwfcng_x_tensors(1))
   call TF_DeleteTensor(gwfcng_y_tensors(1))
-  deallocate( uuu_flattened )
-  deallocate( vvv_flattened )
   deallocate( uuu_reshaped )
   deallocate( vvv_reshaped )
   deallocate( lat_reshaped )
   deallocate( psfc_reshaped )
-  deallocate( gwfcng_x_flattened )
-  deallocate( gwfcng_y_flattened )
 
 
 end subroutine cg_drag_ML
