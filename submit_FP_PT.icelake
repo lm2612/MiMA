@@ -69,7 +69,7 @@ application="/home/sjc306/hpc-work/Datawave/MiMA/build-debug-fp/mima.x"
 options=""
 
 #! Work directory (i.e. where the job will run):
-workdir="/home/sjc306/hpc-work/Datawave/MiMA/MiMA_datawave_fp-pt/"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
+workdir="/home/sjc306/hpc-work/Datawave/MiMA/MiMA_datawave_fp_pt/"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
                              # in which sbatch is run.
 
 #! Are you using OpenMP (NB this is unrelated to OpenMPI)? If so increase this
