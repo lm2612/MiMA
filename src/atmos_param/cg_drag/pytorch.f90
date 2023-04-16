@@ -128,7 +128,7 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
 
   real, dimension(:,:), allocatable  :: uuu_flattened, vvv_flattened
   real, dimension(:,:), allocatable, target  :: uuu_reshaped, vvv_reshaped
-  real, dimension(:), allocatable, target    :: lat_reshaped, psfc_reshaped
+  real, dimension(:,:), allocatable, target    :: lat_reshaped, psfc_reshaped
   real, dimension(:,:), allocatable  :: gwfcng_x_flattened, gwfcng_y_flattened
   real, dimension(:,:), allocatable, target  :: gwfcng_x_reshaped, gwfcng_y_reshaped
 
@@ -156,14 +156,15 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   ! Note that the '1D' tensor has 2 dimensions, one of which is size 1
   shape_2D = (/ imax*jmax, kmax /)
   shape_1D = (/ imax*jmax, 1 /)
+  shape_out = (/ imax*jmax, kmax /)
 
   ! flatten data (nlat, nlon, n) --> (nlat*nlon, n)
   allocate( uuu_flattened(imax*jmax, kmax) )
   allocate( vvv_flattened(imax*jmax, kmax) )
   allocate( uuu_reshaped(kmax, imax*jmax) )
   allocate( vvv_reshaped(kmax, imax*jmax) )
-  allocate( lat_reshaped(imax*jmax) )
-  allocate( psfc_reshaped(imax*jmax) )
+  allocate( lat_reshaped(1, imax*jmax) )
+  allocate( psfc_reshaped(1, imax*jmax) )
   allocate( gwfcng_x_flattened(imax*jmax, kmax) )
   allocate( gwfcng_y_flattened(imax*jmax, kmax) )
   allocate( gwfcng_x_reshaped(kmax, imax*jmax) )
@@ -172,8 +173,8 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   do j=1,jmax
       uuu_flattened((j-1)*imax+1:j*imax,:) = uuu(:,j,:)
       vvv_flattened((j-1)*imax+1:j*imax,:) = vvv(:,j,:)
-      lat_reshaped((j-1)*imax+1:j*imax) = lat(:,j)*RADIAN
-      psfc_reshaped((j-1)*imax+1:j*imax) = psfc(:,j)/100
+      lat_reshaped(1, (j-1)*imax+1:j*imax) = lat(:,j)*RADIAN
+      psfc_reshaped(1, (j-1)*imax+1:j*imax) = psfc(:,j)/100
   end do
 
   uuu_reshaped = TRANSPOSE(uuu_flattened)
