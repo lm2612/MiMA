@@ -117,7 +117,7 @@ contains
 
  subroutine damping_driver (is, ie, js, je, lat, Time, delt, pfull, phalf, zfull, zhalf, &
                             u, v, t, q, r,  udt, vdt, tdt, qdt, rdt,  & ! mask, kbot)
-                            z_pbl, mask, kbot, temp)
+                            z_pbl, temp, mask, kbot)
 
 !-----------------------------------------------------------------------
  integer,         intent(in)                :: is, ie, js, je
