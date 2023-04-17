@@ -659,6 +659,9 @@ type(time_type),        intent(in)      :: Time
 real           ,        intent(in)      :: delt
 real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
 
+! FIXME
+real, dimension(:,:,:), allocatable     :: gwfcng_x_AD, gwfcng_y_AD
+
 !-------------------------------------------------------------------
 !    intent(in) variables:
 !
@@ -851,12 +854,23 @@ real, dimension(:,:,:), intent(out)     :: gwfcng_x, gwfcng_y
          call gwfc (is, ie, js, je, damp_level, source_level, source_amp,  lat,  &
                        zden, zv, zbf,zzchm, gwd_ytnd, ked_ytnd)
          gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
+
        
          ! TODO ked is only ever used as a diagnostic to be written out - we do not need to calculate it!
          ! ked_gwfc_x(:,:,1:kmax) = ked_xtnd(:,:,1:kmax  )
          ! ked_gwfc_y(:,:,1:kmax) = ked_ytnd(:,:,1:kmax  )
        
        endif
+! SJC Debug printing for ML GW computation
+!      if (mpp_pe() == mpp_root_pe()) then
+!        write(*,*)'AD output'
+!        write(*,*) gwfcng_x_AD
+!        write(*,*)'ML output'
+!        write(*,*) gwfcng_x
+!      endif
+!       stop
+!       deallocate(gwfcng_x_AD)
+!       deallocate(gwfcng_y_AD)
 
        call mpp_clock_end(timer_id)
        
