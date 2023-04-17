@@ -117,7 +117,7 @@ contains
 
  subroutine damping_driver (is, ie, js, je, lat, Time, delt, pfull, phalf, zfull, zhalf, &
                             u, v, t, q, r,  udt, vdt, tdt, qdt, rdt,  & ! mask, kbot)
-                            z_pbl, mask, kbot)
+                            z_pbl, mask, kbot, temp)
 
 !-----------------------------------------------------------------------
  integer,         intent(in)                :: is, ie, js, je
@@ -126,7 +126,7 @@ contains
  real,            intent(in)                :: delt
  real,    intent(in),    dimension(:,:,:)   :: pfull, phalf, &
                                                zfull, zhalf, &
-                                               u, v, t, q
+                                               u, v, t, q, temp
  real,    intent(in),    dimension(:,:,:,:) :: r
  real,    intent(inout), dimension(:,:,:)   :: udt,vdt,tdt,qdt
  real,    intent(inout), dimension(:,:,:,:) :: rdt
@@ -251,7 +251,7 @@ contains
 !mj updating call to riga version of cg_drag
       !call cg_drag_calc (is, js, lat, pfull, zfull, t, u, Time,    &
       !                  delt, utnd)
-      call get_psfc(is, ie, js, je, phalf, t, psfc, kbot)     
+      call get_psfc(is, ie, js, je, phalf, temp, psfc, kbot)     
       call cg_drag_calc (is, js, lat, pfull, zfull, psfc, t, u, v, Time, delt, utnd, vtnd)
      udt =  udt + utnd
      vdt =  vdt + vtnd !mj
