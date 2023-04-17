@@ -66,7 +66,8 @@ application="/home/sjc306/hpc-work/Datawave/MiMA/build-rel-tf/mima.x"
 options=""
 
 #! Work directory (i.e. where the job will run):
-workdir="/home/sjc306/hpc-work/Datawave/MiMA/MiMA_datawave_tf/"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
+savedir="/home/sjc306/hpc-work/Datawave/MiMA/MiMA_datawave_tf/"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
+workdir="/local/sjc306/hpc-work/Datawave/MiMA/MiMA_datawave_tf/"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
                              # in which sbatch is run.
 
 #! Are you using OpenMP (NB this is unrelated to OpenMPI)? If so increase this
@@ -105,6 +106,8 @@ CMD="mpiexec -n $np $application $options"
 ### You should not have to change anything below this line ####
 ###############################################################
 
+mkdir -p $workdir
+rm -r $workdir/*
 cd $workdir
 echo -e "Changed directory to `pwd`.\n"
 
@@ -145,3 +148,6 @@ echo -e "\nnumtasks=$numtasks, numnodes=$numnodes, mpi_tasks_per_node=$mpi_tasks
 echo -e "\nExecuting command:\n==================\n$CMD\n"
 
 eval $CMD 
+
+echo 'Copying data back'
+cp -pr $workdir/* $savedir/
