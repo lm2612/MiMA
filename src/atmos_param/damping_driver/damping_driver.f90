@@ -650,7 +650,7 @@ subroutine  get_psfc(is, ie, js, je, phalf, t, psfc, kbot)
 
   integer :: i, j, kb
   integer :: kmax
-  real, dimension (size(t,1), size(t,2), size(t,3)+1) ::  phalf2
+!  real, dimension (size(t,1), size(t,2), size(t,3)+1) ::  phalf2
 
   !---------------------------------------------------------------------
   !  local variables
@@ -666,7 +666,7 @@ subroutine  get_psfc(is, ie, js, je, phalf, t, psfc, kbot)
   !----------------------------------------------------------------------
   kmax = size(t,3)
   ! print *, 'we are NOT doing data override.'
-  phalf2(:,:,kmax+1) = phalf(:,:,kmax+1)
+  !phalf2(:,:,kmax+1) = phalf(:,:,kmax+1)
 
   ! allocate psfc(size(t,1),size(t,2))
   !--------------------------------------------------------------------
@@ -676,11 +676,11 @@ subroutine  get_psfc(is, ie, js, je, phalf, t, psfc, kbot)
     do j=1,je-js+1
       do i=1,ie-is+1
         kb = kbot(i,j)
-        psfc(i,j) = phalf2(i,j,kb+1)
+        psfc(i,j) = phalf(i,j,kb+1)
       end do
     end do
   else
-    psfc(:,:) = phalf2(:,:,kmax+1)
+    psfc(:,:) = phalf(:,:,kmax+1)
   endif
 
 

@@ -108,15 +108,15 @@ CMD="mpiexec -n $np $application $options"
 cd $workdir
 echo -e "Changed directory to `pwd`.\n"
 
-echo "Copying /input-AD from ~/MiMA"
-cp -r /home/sjc306/hpc-work/Datawave/MiMA/input-AD/* .
+echo "Copying /input from ~/MiMA"
+cp -r /home/sjc306/hpc-work/Datawave/MiMA/input/* .
 echo "Copying input_ad.nml into workdir"
 cp /home/sjc306/hpc-work/Datawave/MiMA/input_ad.nml ./input.nml
 echo "copying executable"
 cp $application .
 
 echo "Making RESTART directory"
-mkdir RESTART
+mkdir -p RESTART
 
 echo "numnodes="
 echo $SLURM_JOB_NUM_NODES

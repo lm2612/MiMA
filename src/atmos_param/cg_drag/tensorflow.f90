@@ -261,12 +261,12 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
           vvv_reshaped(k, (j-1)*imax+1:j*imax) = vvv(:,j,k)
       end do
       lat_reshaped(1, (j-1)*imax+1:j*imax) = lat(:,j)*RADIAN
-      psfc_reshaped(1, (j-1)*imax+1:j*imax) = psfc(:,j)/100
+      psfc_reshaped(1, (j-1)*imax+1:j*imax) = psfc(:,j)
   end do
 
   ! Create input/output tensors from the above arrays
-  model_input_arr(1) = r64_2_associate_tensor(lat_reshaped)
-  model_input_arr(2) = r64_2_associate_tensor(psfc_reshaped)
+  model_input_arr(2) = r64_2_associate_tensor(lat_reshaped)
+  model_input_arr(1) = r64_2_associate_tensor(psfc_reshaped)
 
   ! Zonal
   model_input_arr(3) = r64_2_associate_tensor(uuu_reshaped)

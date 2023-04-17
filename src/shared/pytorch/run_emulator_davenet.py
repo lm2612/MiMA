@@ -73,7 +73,7 @@ def compute_reshape_drag(*args):
         # Ensure evaluation mode (leave training mode and stop using current batch stats)
         # model.eval()  # Set during initialisation
         assert model.training is False
-        temp = model(wind_T, lat_T, pressure_T)
+        temp = model(wind_T, pressure_T, lat_T)
 
     # Place in output array for MiMA.
     Y_out[:, :] = temp

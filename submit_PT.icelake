@@ -116,7 +116,7 @@ echo "copying executable"
 cp $application .
 
 echo "Making RESTART directory"
-mkdir RESTART
+mkdir -p RESTART
 
 echo "Copying network_wst.pkl"
 cp /home/sjc306/hpc-work/Datawave/MiMA/src/shared/pytorch/network_wst.pkl .

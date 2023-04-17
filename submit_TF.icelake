@@ -116,7 +116,7 @@ echo "copying executable"
 cp $application .
 
 echo "Making RESTART directory"
-mkdir RESTART
+mkdir -p RESTART
 
 echo "numnodes="
 echo $SLURM_JOB_NUM_NODES

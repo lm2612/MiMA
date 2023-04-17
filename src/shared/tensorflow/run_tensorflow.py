@@ -57,7 +57,7 @@ def compute_reshape_drag(*args):
     # TF will make Tensors itself?
 
     # Apply model.
-    temp = model.predict([wind, lat, p_surf], verbose=0)
+    temp = model.predict([wind, p_surf, lat], verbose=0)
 
     # Place in output array for MiMA.
     Y_out[:, :] = temp

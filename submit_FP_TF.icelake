@@ -124,7 +124,7 @@ echo "copying executable"
 cp $application .
 
 echo "Making RESTART directory"
-mkdir RESTART
+mkdir -p RESTART
 
 echo "Loading python environment from $PYENV_TO_LOAD"
 source $PYENV_TO_LOAD/bin/activate
