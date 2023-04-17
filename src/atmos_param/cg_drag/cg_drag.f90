@@ -852,12 +852,12 @@ real, dimension(:,:,:), allocatable     :: gwfcng_x_AD, gwfcng_y_AD
          call gwfc (is, ie, js, je, damp_level, source_level, source_amp, lat,   &
                        zden, zu, zbf,zzchm, gwd_xtnd, ked_xtnd)
          !gwfcng_x  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
-         gwfcng_x_AD  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
+         gwfcng_x  (:,:,1:kmax) = gwd_xtnd(:,:,1:kmax  )
 
          call gwfc (is, ie, js, je, damp_level, source_level, source_amp,  lat,  &
                        zden, zv, zbf,zzchm, gwd_ytnd, ked_ytnd)
          !gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
-         gwfcng_y_AD  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
+         gwfcng_y  (:,:,1:kmax) = gwd_ytnd(:,:,1:kmax  )
 
        
          ! TODO ked is only ever used as a diagnostic to be written out - we do not need to calculate it!
