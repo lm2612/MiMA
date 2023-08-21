@@ -24,7 +24,7 @@ public    cg_drag_ML_init, cg_drag_ML_end, cg_drag_ML
 !
 !--------------------------------------------------------------------
 
-type(torch_module) :: model
+type(torch_module) :: model_zonal, model_meridional
 
 
 !--------------------------------------------------------------------
@@ -41,7 +41,7 @@ contains
 
 !####################################################################
 
-subroutine cg_drag_ML_init(model_dir, model_name)
+subroutine cg_drag_ML_init(model_dir, model_name_zonal, model_name_meridional)
 
   !-----------------------------------------------------------------
   !    cg_drag_ML_init is called from cg_drag_init and initialises
@@ -54,17 +54,21 @@ subroutine cg_drag_ML_init(model_dir, model_name)
   !    intent(in) variables:
   !
   !       model_dir    full filepath to the model directory
-  !       model_name   filename of the TorchScript model
+  !       model_name_zonal      filename of the TorchScript model in 
+  !                               zonal direction
+  !       model_name_meridional filename of the TorchScript model in 
+  !                               meridional direction
   !
   !-----------------------------------------------------------------
   character(len=1024), intent(in)        :: model_dir
-  character(len=1024), intent(in)        :: model_name
-  
+  character(len=1024), intent(in)        :: model_name_zonal, model_name_meridional
+
   !-----------------------------------------------------------------
   
   ! Initialise the ML model to be used
-  model = torch_module_load(trim(model_dir)//trim(model_name)//c_null_char)
-
+  model_zonal = torch_module_load(trim(model_dir)//trim(model_name_zonal)//c_null_char)
+  model_meridional = torch_module_load(trim(model_dir)//trim(model_name_meridional)//c_null_char)
+    
 end subroutine cg_drag_ML_init
 
 
@@ -80,7 +84,8 @@ subroutine cg_drag_ML_end
   !-----------------------------------------------------------------
   
   ! destroy the model
-  call torch_module_delete(model)
+  call torch_module_delete(model_zonal)
+  call torch_module_delete(model_meridional)
 
 end subroutine cg_drag_ML_end
 
@@ -192,13 +197,13 @@ subroutine cg_drag_ML(uuu, vvv, temp, psfc, lat, gwfcng_x, gwfcng_y)
   model_input_arr(1) = torch_tensor_from_blob(c_loc(uuu_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
   gwfcng_x_tensor = torch_tensor_from_blob(c_loc(gwfcng_x_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
   ! Run model and Infer
-  call torch_module_forward(model, model_input_arr, n_inputs, gwfcng_x_tensor)
+  call torch_module_forward(model_zonal, model_input_arr, n_inputs, gwfcng_x_tensor)
   
   ! Meridional
   model_input_arr(1) = torch_tensor_from_blob(c_loc(vvv_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
   gwfcng_y_tensor = torch_tensor_from_blob(c_loc(gwfcng_y_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
   ! Run model and Infer
-  call torch_module_forward(model, model_input_arr, n_inputs, gwfcng_y_tensor)
+  call torch_module_forward(model_meridional, model_input_arr, n_inputs, gwfcng_y_tensor)
 
 
   ! Convert back into fortran types, reshape, and assign to gwfcng

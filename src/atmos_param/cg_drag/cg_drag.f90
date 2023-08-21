@@ -170,8 +170,10 @@ logical :: runML=.false.
 
 character(len=1024) :: model_dir="undefined/"
                                   ! Full filepath to directory contaioning ML model
-character(len=1024) :: model_name="undefined"
-                                  ! Filename of ML model/name of script to run
+character(len=1024) :: model_name_zonal="undefined"
+                                  ! Filename of ML model/name of script to run - zonal
+character(len=1024) :: model_name_meridional="undefined"
+                                  ! Filename of ML model/name of script to run - meridional
 
 namelist / cg_drag_nml /         &
                           cg_drag_freq, cg_drag_offset, &
@@ -185,7 +187,7 @@ namelist / cg_drag_nml /         &
                           phi0n,phi0s,dphin,dphis, Bw, Bn, cw, cwtropics, cn, flag, &
                           weightminus2, weightminus1, weighttop,kelvin_kludge,&
                           ! Added for ML
-                          runML, model_dir, model_name
+                          runML, model_dir, model_name_zonal, model_name_meridional
 
 
 !--------------------------------------------------------------------
@@ -592,7 +594,7 @@ type(time_type),         intent(in)      :: Time
 !    initialize the ML functionalities
 !---------------------------------------------------------------------
       if (runML) then
-        call cg_drag_ML_init(model_dir, model_name)
+        call cg_drag_ML_init(model_dir, model_name_zonal, model_name_meridional)
       endif
 
 !---------------------------------------------------------------------
