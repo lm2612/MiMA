@@ -843,7 +843,7 @@ real, dimension(:,:,:), allocatable     :: gwfcng_x_AD, gwfcng_y_AD
        call mpp_clock_begin(timer_id)
 
        if (runML) then
-         call cg_drag_ML (uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
+         call cg_drag_ML (uuu, vvv, temp, psfc, lat, gwfcng_x, gwfcng_y)
        else
 
          ! AD99 Parameterisation from original code
@@ -889,6 +889,7 @@ real, dimension(:,:,:), allocatable     :: gwfcng_x_AD, gwfcng_y_AD
 !--------------------------------------------------------------------
 !    store the gravity wave forcing into a processor-global array.
 !-------------------------------------------------------------------
+
           gwd_u(is:ie,js:je,:) = gwfcng_x(:,:,:)
           gwd_v(is:ie,js:je,:) = gwfcng_y(:,:,:)
 

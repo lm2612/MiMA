@@ -1,6 +1,7 @@
 module cg_drag_ML_mod
 
 use constants_mod, only:  RADIAN
+use fms_mod,       only:   mpp_pe
 
 ! #ML
 ! Imports primitives used to interface with C
@@ -86,7 +87,7 @@ end subroutine cg_drag_ML_end
 
 !####################################################################
 
-subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
+subroutine cg_drag_ML(uuu, vvv, temp, psfc, lat, gwfcng_x, gwfcng_y)
 
   !-----------------------------------------------------------------
   !    cg_drag_ML returns the x and y gravity wave drag forcing
@@ -111,8 +112,7 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   !                [ m/s^2 ]
   !
   !-----------------------------------------------------------------
-  
-  real, dimension(:,:,:), intent(in)    :: uuu, vvv
+  real, dimension(:,:,:), intent(in)    :: uuu, vvv, temp
   real, dimension(:,:),   intent(in)    :: lat, psfc
   
   real, dimension(:,:,:), intent(out), target   :: gwfcng_x, gwfcng_y
@@ -126,11 +126,12 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   !
   !---------------------------------------------------------------------
 
-  real, dimension(:,:), allocatable, target  :: uuu_reshaped, vvv_reshaped
+  real, dimension(:,:), allocatable, target  :: uuu_reshaped, vvv_reshaped, temp_reshaped
   real, dimension(:,:), allocatable, target    :: lat_reshaped, psfc_reshaped
   real, dimension(:,:), allocatable, target  :: gwfcng_x_reshaped, gwfcng_y_reshaped
+  integer, dimension(:,:),  allocatable, target :: lat_ind
 
-  integer :: imax, jmax, kmax, j, k
+  integer :: imax, jmax, kmax, j, k, start_lat_ind
 
   integer(c_int), parameter :: dims_2D = 2
   integer(c_int64_t) :: shape_2D(dims_2D)
@@ -141,7 +142,7 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
 
   ! Set up types of input and output data and the interface with C
   type(torch_tensor) :: gwfcng_x_tensor, gwfcng_y_tensor
-  integer(c_int), parameter :: n_inputs = 3
+  integer(c_int), parameter :: n_inputs = 5
   type(torch_tensor), dimension(n_inputs), target :: model_input_arr
   
   !----------------------------------------------------------------
@@ -151,6 +152,9 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   jmax = size(uuu, 2)
   kmax = size(uuu, 3)
 
+  ! Get starting latitude index
+  start_lat_ind = mpp_pe()*jmax          ! from 0 to 64
+
   ! Note that the '1D' tensor has 2 dimensions, one of which is size 1
   shape_2D = (/ imax*jmax, kmax /)
   shape_1D = (/ imax*jmax, 1 /)
@@ -159,8 +163,11 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   ! flatten data (nlat, nlon, n) --> (nlat*nlon, n)
   allocate( uuu_reshaped(kmax, imax*jmax) )
   allocate( vvv_reshaped(kmax, imax*jmax) )
+  allocate( temp_reshaped(kmax, imax*kmax) )
+
   allocate( lat_reshaped(1, imax*jmax) )
   allocate( psfc_reshaped(1, imax*jmax) )
+  allocate( lat_ind(1, imax*jmax) )
   allocate( gwfcng_x_reshaped(kmax, imax*jmax) )
   allocate( gwfcng_y_reshaped(kmax, imax*jmax) )
 
@@ -168,15 +175,19 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
       do k=1, kmax
           uuu_reshaped(k, (j-1)*imax+1:j*imax) = uuu(:,j,k)
           vvv_reshaped(k, (j-1)*imax+1:j*imax) = vvv(:,j,k)
+          temp_reshaped(k, (j-1)*imax+1:j*imax) = temp(:,j,k)
       end do
-      lat_reshaped(1, (j-1)*imax+1:j*imax) = lat(:,j)*RADIAN
+      lat_reshaped(1, (j-1)*imax+1:j*imax) = lat(:,j) !!!*RADIAN
       psfc_reshaped(1, (j-1)*imax+1:j*imax) = psfc(:,j)
+      lat_ind(1, (j-1)*imax+1:j*imax) = start_lat_ind + j - 1    !! python indexing
   end do
 
   ! Create input/output tensors from the above arrays
-  model_input_arr(3) = torch_tensor_from_blob(c_loc(lat_reshaped), dims_1D, shape_1D, torch_kFloat64, torch_kCPU)
-  model_input_arr(2) = torch_tensor_from_blob(c_loc(psfc_reshaped), dims_1D, shape_1D, torch_kFloat64, torch_kCPU)
-  
+  model_input_arr(5) = torch_tensor_from_blob(c_loc(lat_ind), dims_1D, shape_1D, torch_kInt32, torch_kCPU)
+  model_input_arr(4) = torch_tensor_from_blob(c_loc(psfc_reshaped), dims_1D,   shape_1D, torch_kFloat64, torch_kCPU)
+  model_input_arr(3) = torch_tensor_from_blob(c_loc(lat_reshaped), dims_1D,  shape_1D, torch_kFloat64, torch_kCPU)
+  model_input_arr(2) = torch_tensor_from_blob(c_loc(temp_reshaped), dims_2D,   shape_2D, torch_kFloat64, torch_kCPU)
+
   ! Zonal
   model_input_arr(1) = torch_tensor_from_blob(c_loc(uuu_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
   gwfcng_x_tensor = torch_tensor_from_blob(c_loc(gwfcng_x_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
@@ -202,6 +213,8 @@ subroutine cg_drag_ML(uuu, vvv, psfc, lat, gwfcng_x, gwfcng_y)
   call torch_tensor_delete(model_input_arr(1))
   call torch_tensor_delete(model_input_arr(2))
   call torch_tensor_delete(model_input_arr(3))
+  call torch_tensor_delete(model_input_arr(4))
+  call torch_tensor_delete(model_input_arr(5))
   call torch_tensor_delete(gwfcng_x_tensor)
   call torch_tensor_delete(gwfcng_y_tensor)
   deallocate( uuu_reshaped )
