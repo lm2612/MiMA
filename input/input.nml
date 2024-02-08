@@ -1,6 +1,6 @@
 &coupler_nml
    days   = 360,
-   dt_atmos =500,
+   dt_atmos =600,
    current_date = 0001,1,1,0,0,0
    calendar = 'thirty_day' /
 
@@ -130,8 +130,9 @@
      damp_level_pressure = 0.85e+02,
      cg_drag_freq = 21600,
      runML = .true.,
-     model_dir = 'unknown',
-     model_name = 'unknown.ext'/
+     model_dir = 'MODELS/',
+     model_name_zonal = 'zonal_wavenet.pth',
+     model_name_meridional = 'meridional_wavenet.pth' /
 
  &moist_processes_nml
      do_bm           =.true.,   
