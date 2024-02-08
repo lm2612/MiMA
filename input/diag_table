@@ -1,29 +1,46 @@
 "MiMA"
 0001 1 1 0 0 0
 #output files
+#"atmos_all",       21600, "seconds", 1, "days", "time",      
 "atmos_daily",    24, "hours", 1, "days", "time",
-"atmos_davg",     24, "hours", 1, "days", "time",
-"atmos_dext",     24, "hours", 1, "days", "time",
 "atmos_avg",      -1, "hours", 1, "days", "time",
 #diagnostic field entries. 
-# quantities needed for plevel interpolation,
- "dynamics",        "bk",         "bk",             "atmos_daily",    "all", .false., "none", 2,
+"dynamics",        "bk",         "bk",             "atmos_daily",    "all", .false., "none", 2,
  "dynamics",        "pk",         "pk",             "atmos_daily",    "all", .false., "none", 2,
  "dynamics",        "ps",         "ps",             "atmos_daily",    "all", .false., "none", 2,
 # dynamics variables
  "dynamics",        "ucomp",      "ucomp",          "atmos_daily",    "all", .false., "none", 2,
+ "dynamics",        "vcomp",      "vcomp",          "atmos_daily",    "all", .false., "none", 2,
+ "dynamics",        "omega",      "omega",          "atmos_daily",    "all", .false., "none", 2,
+ "dynamics",        "height",     "height",         "atmos_daily",    "all", .false., "none", 2,
  "dynamics",        "temp",       "temp",           "atmos_daily",    "all", .false., "none", 2,
  "dynamics",        "sphum",      "sphum",          "atmos_daily",    "all", .false., "none", 2,
- "dynamics",        "ucomp",      "ucomp",          "atmos_avg",      "all", .true.,  "none", 2,
- "dynamics",        "temp",       "temp",           "atmos_avg",      "all", .true.,  "none", 2,
- "dynamics",        "sphum",      "sphum",          "atmos_avg",      "all", .true.,  "none", 2,
-# surface variables
- "simple_surface",  "t_surf",     "t_surf",         "atmos_davg",     "all", .true., "none", 2,
- "simple_surface",  "t_surf",     "t_surf_max",     "atmos_dext",     "all", "max",  "none", 2,
- "simple_surface",  "t_surf",     "t_surf_min",     "atmos_dext",     "all", "min",  "none", 2,
-# moisture variables
-  "moist",          "precip",     "precip",         "atmos_davg",     "all", .true., "none", 2,
-  "moist",          "precip",     "precip_max",     "atmos_dext",     "all", "max",  "none", 2,
+ "dynamics",        "vor",        "vor",            "atmos_daily",    "all", .false., "none", 2,
+ "dynamics",        "div",        "div",            "atmos_daily",    "all", .false., "none", 2,
+
+# cg drag variables
+ "cg_drag",         "gwfu_cgwd",  "gwfu_cgwd",      "atmos_daily",    "all", .false., "none", 2.
+ "cg_drag",         "gwfv_cgwd",  "gwfv_cgwd",      "atmos_daily",    "all", .false., "none", 2.
+ "cg_drag",         "bf_cgwd",    "bf_cgwd",        "atmos_daily",    "all", .false., "none", 2.
+ "cg_drag",         "kedx_cgwd",  "kedx_cgwd",      "atmos_daily",    "all", .false., "none", 2.
+ "cg_drag",         "kedy_cgwd",  "kedy_cgwd",      "atmos_daily",    "all", .false., "none", 2.
+
+ "dynamics",        "ucomp",      "ucomp",          "atmos_avg",        "all", .true.,  "none", 2,
+ "dynamics",        "vcomp",      "vcomp",          "atmos_avg",        "all", .true.,  "none", 2,
+ "dynamics",        "omega",      "omega",          "atmos_avg",        "all", .true.,  "none", 2,
+ "dynamics",        "height",     "height",         "atmos_avg",        "all", .true.,  "none", 2,
+ "dynamics",        "temp",       "temp",           "atmos_avg",        "all", .true.,  "none", 2,
+ "dynamics",        "sphum",      "sphum",          "atmos_avg",        "all", .true.,  "none", 2,
+ "dynamics",        "vor",        "vor",            "atmos_avg",        "all", .true.,  "none", 2,
+ "dynamics",        "div",        "div",            "atmos_avg",        "all", .true.,  "none", 2,
+
+ "cg_drag",         "gwfu_cgwd",  "gwfu_cgwd",       "atmos_avg",        "all", .true.,  "none", 2,
+ "cg_drag",         "gwfv_cgwd",  "gwfv_cgwd",       "atmos_avg",        "all", .true.,  "none", 2,
+ "cg_drag",         "bf_cgwd",    "bf_cgwd",         "atmos_avg",        "all", .true.,  "none", 2,
+ "cg_drag",         "kedx_cgwd",  "kedx_cgwd",       "atmos_avg",        "all", .true.,  "none", 2,
+ "cg_drag",         "kedy_cgwd",  "kedy_cgwd",       "atmos_avg",        "all", .true.,  "none", 2,
+
+
 #=============================================================================================
 #
 #  FORMATS FOR FILE ENTRIES (not all input values are used)
