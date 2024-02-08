@@ -27,7 +27,8 @@ RRTM/RRTMG: Copyright © 2002-2010, Atmospheric and Environmental Research, Inc.
 may be used, copied, or redistributed as long as it is not sold and this copyright notice is reproduced
 on each copy made. This model is provided as is without any express or implied warranties.
 
-## This branch contains version of MiMA used in Mansfield & Sheshadri, (2024): Uncertainty Quantification of a Machine Learning Subgrid-Scale Parameterization for Atmospheric Gravity Waves
+## This branch (lm2612/MiMA/tree/ML-laura)
+This branch ontains version of MiMA used in Mansfield & Sheshadri, (2024): Uncertainty Quantification of a Machine Learning Subgrid-Scale Parameterization for Atmospheric Gravity Waves.
 Files edited:
 * `MiMA/src/atmos_param/cg_drag/cg_drag.f90`
 * `MiMA/inputs/input.nml`
