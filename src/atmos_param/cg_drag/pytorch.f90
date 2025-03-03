@@ -4,8 +4,6 @@ use constants_mod, only:  RADIAN
 use fms_mod,       only:   mpp_pe
 
 ! #ML
-! Imports primitives used to interface with C
-use, intrinsic :: iso_c_binding, only: c_int64_t, c_float, c_char, c_null_char, c_ptr, c_loc
 ! Import library for interfacing with PyTorch
 use ftorch
 
@@ -24,7 +22,7 @@ public    cg_drag_ML_init, cg_drag_ML_end, cg_drag_ML
 !
 !--------------------------------------------------------------------
 
-type(torch_module) :: model_zonal, model_meridional
+type(torch_model) :: model_zonal, model_meridional
 
 
 !--------------------------------------------------------------------
@@ -66,8 +64,8 @@ subroutine cg_drag_ML_init(model_dir, model_name_zonal, model_name_meridional)
   !-----------------------------------------------------------------
   
   ! Initialise the ML model to be used
-  model_zonal = torch_module_load(trim(model_dir)//trim(model_name_zonal)//c_null_char)
-  model_meridional = torch_module_load(trim(model_dir)//trim(model_name_meridional)//c_null_char)
+   call torch_model_load(model_zonal, trim(model_dir)//trim(model_name_zonal), torch_kCPU)
+   call torch_model_load(model_meridional, trim(model_dir)//trim(model_name_meridional), torch_kCPU)
     
 end subroutine cg_drag_ML_init
 
@@ -84,8 +82,8 @@ subroutine cg_drag_ML_end
   !-----------------------------------------------------------------
   
   ! destroy the model
-  call torch_module_delete(model_zonal)
-  call torch_module_delete(model_meridional)
+  call torch_delete(model_zonal)
+  call torch_delete(model_meridional)
 
 end subroutine cg_drag_ML_end
 
@@ -138,17 +136,14 @@ subroutine cg_drag_ML(uuu, vvv, temp, psfc, lat, gwfcng_x, gwfcng_y)
 
   integer :: imax, jmax, kmax, j, k, start_lat_ind
 
-  integer(c_int), parameter :: dims_2D = 2
-  integer(c_int64_t) :: shape_2D(dims_2D)
-  integer(c_int), parameter :: dims_1D = 2
-  integer(c_int64_t) :: shape_1D(dims_1D)
-  integer(c_int), parameter :: dims_out = 2
-  integer(c_int64_t) :: shape_out(dims_out)
+  integer, dimension(2) :: shape_1D
+  integer, dimension(2) :: shape_2D
 
   ! Set up types of input and output data and the interface with C
-  type(torch_tensor) :: gwfcng_x_tensor, gwfcng_y_tensor
-  integer(c_int), parameter :: n_inputs = 5
+  integer, parameter :: n_inputs = 5
   type(torch_tensor), dimension(n_inputs), target :: model_input_arr
+  integer, parameter :: n_outputs = 1
+  type(torch_tensor), dimension(n_outputs):: gwfcng_x_tensor, gwfcng_y_tensor
   
   !----------------------------------------------------------------
 
@@ -163,7 +158,6 @@ subroutine cg_drag_ML(uuu, vvv, temp, psfc, lat, gwfcng_x, gwfcng_y)
   ! Note that the '1D' tensor has 2 dimensions, one of which is size 1
   shape_2D = (/ imax*jmax, kmax /)
   shape_1D = (/ imax*jmax, 1 /)
-  shape_out = (/ imax*jmax, kmax /)
 
   ! flatten data (nlat, nlon, n) --> (nlat*nlon, n)
   allocate( uuu_reshaped(kmax, imax*jmax) )
@@ -188,22 +182,22 @@ subroutine cg_drag_ML(uuu, vvv, temp, psfc, lat, gwfcng_x, gwfcng_y)
   end do
 
   ! Create input/output tensors from the above arrays
-  model_input_arr(5) = torch_tensor_from_blob(c_loc(lat_ind), dims_1D, shape_1D, torch_kInt32, torch_kCPU)
-  model_input_arr(4) = torch_tensor_from_blob(c_loc(psfc_reshaped), dims_1D,   shape_1D, torch_kFloat64, torch_kCPU)
-  model_input_arr(3) = torch_tensor_from_blob(c_loc(lat_reshaped), dims_1D,  shape_1D, torch_kFloat64, torch_kCPU)
-  model_input_arr(2) = torch_tensor_from_blob(c_loc(temp_reshaped), dims_2D,   shape_2D, torch_kFloat64, torch_kCPU)
+  call torch_tensor_from_array(model_input_arr(5), lat_ind, shape_1D, torch_kInt32, torch_kCPU)
+  call torch_tensor_from_array(model_input_arr(4), psfc_reshaped, shape_1D, torch_kFloat64, torch_kCPU)
+  call torch_tensor_from_array(model_input_arr(3), lat_reshaped, shape_1D, torch_kFloat64, torch_kCPU)
+  call torch_tensor_from_array(model_input_arr(2), temp_reshaped, shape_2D, torch_kFloat64, torch_kCPU)
 
   ! Zonal
-  model_input_arr(1) = torch_tensor_from_blob(c_loc(uuu_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
-  gwfcng_x_tensor = torch_tensor_from_blob(c_loc(gwfcng_x_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
+  call torch_tensor_from_array(model_input_arr(1), uuu_reshaped, shape_2D, torch_kFloat64, torch_kCPU)
+  call torch_tensor_from_array(gwfcng_x_tensor(1), gwfcng_x_reshaped, shape_2D, torch_kFloat64, torch_kCPU)
   ! Run model and Infer
-  call torch_module_forward(model_zonal, model_input_arr, n_inputs, gwfcng_x_tensor)
+  call torch_model_forward(model_zonal, model_input_arr, gwfcng_x_tensor)
   
   ! Meridional
-  model_input_arr(1) = torch_tensor_from_blob(c_loc(vvv_reshaped), dims_2D, shape_2D, torch_kFloat64, torch_kCPU)
-  gwfcng_y_tensor = torch_tensor_from_blob(c_loc(gwfcng_y_reshaped), dims_out, shape_out, torch_kFloat64, torch_kCPU)
+  call torch_tensor_from_array(model_input_arr(1), vvv_reshaped, shape_2D, torch_kFloat64, torch_kCPU)
+  call torch_tensor_from_array(gwfcng_y_tensor(1), gwfcng_y_reshaped, shape_2D, torch_kFloat64, torch_kCPU)
   ! Run model and Infer
-  call torch_module_forward(model_meridional, model_input_arr, n_inputs, gwfcng_y_tensor)
+  call torch_model_forward(model_meridional, model_input_arr, gwfcng_y_tensor)
 
 
   ! Convert back into fortran types, reshape, and assign to gwfcng
@@ -215,13 +209,9 @@ subroutine cg_drag_ML(uuu, vvv, temp, psfc, lat, gwfcng_x, gwfcng_y)
   end do
 
   ! Cleanup
-  call torch_tensor_delete(model_input_arr(1))
-  call torch_tensor_delete(model_input_arr(2))
-  call torch_tensor_delete(model_input_arr(3))
-  call torch_tensor_delete(model_input_arr(4))
-  call torch_tensor_delete(model_input_arr(5))
-  call torch_tensor_delete(gwfcng_x_tensor)
-  call torch_tensor_delete(gwfcng_y_tensor)
+  call torch_delete(model_input_arr)
+  call torch_delete(gwfcng_x_tensor)
+  call torch_delete(gwfcng_y_tensor)
   deallocate( uuu_reshaped )
   deallocate( vvv_reshaped )
   deallocate( lat_reshaped )
